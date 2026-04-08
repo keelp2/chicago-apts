@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Chicago Apt Search</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0f0f0f;
+  --surface: #1a1a1a;
+  --surface2: #242424;
+  --border: #2e2e2e;
+  --text: #f0ede8;
+  --text2: #a09a92;
+  --text3: #5a5550;
+  --accent: #c4a96b;
+  --green: #7ec8a0;
+  --red: #e87c6c;
+  --blue: #7ab8d4;
+  --yellow: #f0d070;
+  --header-h: 52px;
+  --tab-h: 48px;
+}
+
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; overflow: hidden; }
+
+/* ── HEADER ── */
+#header {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+  height: var(--header-h);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px; padding: 0 12px;
+}
+
+#header-logo {
+  font-size: 13px; font-weight: 700; letter-spacing: 0.05em;
+  color: var(--accent); white-space: nowrap;
+}
+
+#filter-scroll {
+  display: flex; align-items: center; gap: 6px;
+  overflow-x: auto; flex: 1;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+#filter-scroll::-webkit-scrollbar { display: none; }
+
+.chip {
+  display: flex; align-items: center; gap: 5px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 20px; padding: 5px 10px;
+  font-size: 12px; color: var(--text2);
+  white-space: nowrap; cursor: pointer; flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.chip select {
+  background: transparent; border: none; color: var(--text2);
+  font-size: 12px; outline: none; cursor: pointer;
+  -webkit-appearance: none; padding-right: 2px;
+}
+.chip select option { background: #1a1a1a; }
+.chip.active { background: rgba(196,169,107,0.15); border-color: var(--accent); color: var(--accent); }
+.chip.active select { color: var(--accent); }
+
+/* ── TAB BAR (mobile) ── */
+#tabs {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 1000;
+  height: var(--tab-h);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+}
+
+.tab {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 2px;
+  font-size: 10px; color: var(--text3); cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.15s;
+}
+.tab.active { color: var(--accent); }
+.tab-icon { font-size: 18px; line-height: 1; }
+
+/* ── PANELS ── */
+#map-panel, #list-panel {
+  position: fixed;
+  top: var(--header-h);
+  left: 0; right: 0;
+  bottom: var(--tab-h);
+  transition: transform 0.25s ease;
+}
+
+#map-panel { z-index: 1; }
+#list-panel {
+  z-index: 2;
+  background: var(--bg);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  transform: translateX(100%);
+}
+
+#map-panel.active { transform: translateX(0); }
+#list-panel.active { transform: translateX(0); }
+
+/* ── MAP ── */
+#map { width: 100%; height: 100%; }
+.leaflet-container { background: #1a1a1a !important; }
+
+/* ── BOTTOM SHEET (desktop detail) ── */
+#bottom-sheet {
+  position: fixed; left: 0; right: 0; bottom: var(--tab-h);
+  z-index: 500;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  border-radius: 16px 16px 0 0;
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
+  max-height: 55vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+#bottom-sheet.open { transform: translateY(0); }
+
+#sheet-handle {
+  display: flex; justify-content: center; padding: 10px 0 4px;
+  cursor: pointer; flex-shrink: 0;
+}
+#sheet-handle-bar {
+  width: 36px; height: 4px; background: var(--border);
+  border-radius: 2px;
+}
+
+#sheet-content { padding: 0 16px 16px; }
+
+/* ── LIST ── */
+#list-header {
+  padding: 12px 14px 8px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--text3);
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; background: var(--bg); z-index: 1;
+  border-bottom: 1px solid var(--border);
+}
+
+#apt-list { padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+
+.apt-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.15s;
+  position: relative;
+}
+.apt-card:active { background: var(--surface2); }
+.apt-card.selected { border-color: var(--accent); }
+
+.card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 3px; }
+.card-name { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; }
+.card-price { font-size: 14px; font-weight: 700; color: var(--accent); white-space: nowrap; flex-shrink: 0; }
+.card-address { font-size: 11px; color: var(--text3); margin-bottom: 8px; }
+
+.card-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.tag {
+  font-size: 11px; padding: 2px 7px; border-radius: 4px;
+  background: var(--surface2); color: var(--text2);
+  border: 1px solid var(--border);
+}
+.tag.green { background: rgba(126,200,160,0.12); color: var(--green); border-color: rgba(126,200,160,0.25); }
+.tag.red   { background: rgba(232,124,108,0.12); color: var(--red);   border-color: rgba(232,124,108,0.25); }
+.tag.blue  { background: rgba(122,184,212,0.12); color: var(--blue);  border-color: rgba(122,184,212,0.25); }
+.tag.gold  { background: rgba(196,169,107,0.12); color: var(--accent);border-color: rgba(196,169,107,0.25); }
+.tag.avail { background: rgba(126,200,160,0.18); color: var(--green); border-color: rgba(126,200,160,0.3); font-weight: 600; }
+.tag.unavail { background: rgba(232,124,108,0.12); color: var(--red); border-color: rgba(232,124,108,0.25); font-weight: 600; }
+
+.card-footer { font-size: 11px; color: var(--text3); display: flex; gap: 10px; }
+.tour-date { color: var(--yellow); }
+
+/* ── DETAIL SHEET ── */
+.detail-name { font-size: 17px; font-weight: 700; margin-bottom: 2px; }
+.detail-address { font-size: 12px; color: var(--text3); margin-bottom: 10px; }
+.detail-price { font-size: 24px; font-weight: 700; color: var(--accent); margin-bottom: 12px; }
+.detail-price span { font-size: 13px; font-weight: 400; color: var(--text3); }
+
+.avail-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
+  margin-bottom: 14px;
+}
+.avail-pill.yes { background: rgba(126,200,160,0.15); color: var(--green); }
+.avail-pill.no  { background: rgba(232,124,108,0.1);  color: var(--red); }
+
+.detail-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px; margin-bottom: 14px;
+}
+.detail-grid.two { grid-template-columns: 1fr 1fr; }
+
+.dg-item { background: var(--surface2); border-radius: 8px; padding: 8px 10px; }
+.dg-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text3); margin-bottom: 3px; }
+.dg-val { font-size: 13px; font-weight: 600; color: var(--text); }
+.dg-val.green { color: var(--green); }
+.dg-val.red   { color: var(--red); }
+.dg-val.blue  { color: var(--blue); }
+.dg-val.gold  { color: var(--accent); }
+.dg-val.yellow { color: var(--yellow); }
+
+.detail-section-title {
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--text3);
+  padding-bottom: 6px; border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+
+.notes-box {
+  background: var(--surface2); border-radius: 8px; padding: 10px 12px;
+  font-size: 13px; color: var(--text2); line-height: 1.6; font-style: italic;
+  margin-bottom: 12px;
+}
+
+.action-btn {
+  display: block; width: 100%; text-align: center;
+  padding: 11px; border-radius: 8px;
+  border: 1px solid var(--accent); color: var(--accent);
+  background: transparent; font-size: 13px; font-weight: 600;
+  text-decoration: none; cursor: pointer; margin-bottom: 8px;
+  -webkit-tap-highlight-color: transparent;
+}
+.action-btn:active { background: rgba(196,169,107,0.1); }
+
+/* ── MARKER ── */
+.map-pin {
+  background: var(--accent);
+  border: 2px solid #0f0f0f;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+  cursor: pointer;
+}
+.map-pin.sel { background: #fff; border-color: #fff; }
+.map-pin.unavail { background: #7a3a35; }
+.pin-label { transform: rotate(45deg); font-size: 9px; font-weight: 700; color: #0f0f0f; line-height: 1; }
+
+/* ── LOADING ── */
+#loading {
+  position: fixed; inset: 0; z-index: 9999;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 14px;
+  font-size: 12px; letter-spacing: 0.1em; color: var(--accent);
+}
+.spinner { width: 28px; height: 28px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+#error-msg {
+  position: fixed; inset: 0; z-index: 9999;
+  background: var(--bg);
+  display: none; flex-direction: column;
+  align-items: center; justify-content: center; gap: 16px;
+  padding: 32px; text-align: center;
+}
+#error-msg h2 { color: var(--red); font-size: 16px; }
+#error-msg p { font-size: 13px; color: var(--text2); line-height: 1.6; max-width: 300px; }
+
+/* ── DESKTOP overrides ── */
+@media (min-width: 768px) {
+  #tabs { display: none; }
+
+  #map-panel, #list-panel { bottom: 0; transition: none; transform: none !important; }
+
+  #map-panel { left: 320px; right: 0; }
+
+  #list-panel {
+    left: 0; right: auto; width: 320px;
+    border-right: 1px solid var(--border);
+    z-index: 2; background: var(--bg);
+  }
+
+  #bottom-sheet { left: 320px; bottom: 0; border-radius: 0; max-height: 42vh; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══ LOADING ══ -->
+<div id="loading">
+  <div class="spinner"></div>
+  LOADING
+</div>
+
+<!-- ══ ERROR ══ -->
+<div id="error-msg">
+  <h2>Could not load sheet</h2>
+  <p>Make sure your Google Sheet is published as CSV (File → Share → Publish to web → CSV) and the URL in this file is correct.</p>
+</div>
+
+<!-- ══ HEADER ══ -->
+<div id="header">
+  <div id="header-logo">CHI/APTS</div>
+  <div id="filter-scroll">
+    <div class="chip">
+      <span>💰</span>
+      <select id="f-rent">
+        <option value="">Any rent</option>
+        <option value="1500">≤ $1,500</option>
+        <option value="2000">≤ $2,000</option>
+        <option value="2500">≤ $2,500</option>
+        <option value="3000">≤ $3,000</option>
+        <option value="3500">≤ $3,500</option>
+        <option value="4000">≤ $4,000</option>
+      </select>
+    </div>
+    <div class="chip">
+      <span>🛏</span>
+      <select id="f-beds">
+        <option value="">Any beds</option>
+        <option value="0">Studio</option>
+        <option value="1">1 bed</option>
+        <option value="2">2 beds</option>
+        <option value="3">3 beds</option>
+      </select>
+    </div>
+    <div class="chip" id="f-avail-chip">
+      <span>✓</span>
+      <select id="f-avail">
+        <option value="">Any status</option>
+        <option value="yes">Available</option>
+        <option value="no">Unavailable</option>
+      </select>
+    </div>
+    <div class="chip" id="f-wd-chip">
+      <select id="f-wd">
+        <option value="">W/D: any</option>
+        <option value="yes">W/D in-unit</option>
+      </select>
+    </div>
+    <div class="chip" id="f-train-chip">
+      <select id="f-train">
+        <option value="">Transit: any</option>
+        <option value="yes">Near train</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MAP ══ -->
+<div id="map-panel" class="active">
+  <div id="map"></div>
+</div>
+
+<!-- ══ LIST ══ -->
+<div id="list-panel">
+  <div id="list-header">
+    <span id="list-count">— apartments</span>
+    <span id="list-sort" style="cursor:pointer;color:var(--text3);">↕ Rent</span>
+  </div>
+  <div id="apt-list"></div>
+</div>
+
+<!-- ══ BOTTOM SHEET ══ -->
+<div id="bottom-sheet">
+  <div id="sheet-handle" onclick="closeSheet()"><div id="sheet-handle-bar"></div></div>
+  <div id="sheet-content"></div>
+</div>
+
+<!-- ══ TAB BAR ══ -->
+<div id="tabs">
+  <div class="tab active" id="tab-map" onclick="showTab('map')">
+    <div class="tab-icon">🗺</div>
+    <div>Map</div>
+  </div>
+  <div class="tab" id="tab-list" onclick="showTab('list')">
+    <div class="tab-icon">☰</div>
+    <div>List</div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════
+// CONFIG — paste your Google Sheets CSV publish URL here
+// ═══════════════════════════════════════════════════════
+const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQueQE5zSZ4CFNzB3Mmzzwg_p3gxLk7CPm10htt_t0F8iS5riuUA0tBonPha7c8voUEjTNr-kP5CZFz/pub?gid=0&single=true&output=csv';
+
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+let APTS = [], visibleIdxs = [], selectedIdx = null, sortAsc = true;
+let markers = {}, map;
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', async () => {
+  initMap();
+  await fetchData();
+});
+
+// ═══════════════════════════════════════════════════════
+// MAP
+// ═══════════════════════════════════════════════════════
+function initMap() {
+  map = L.map('map', { center: [41.88, -87.65], zoom: 12, zoomControl: false });
+  L.control.zoom({ position: 'bottomright' }).addTo(map);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© OSM © CARTO', subdomains: 'abcd', maxZoom: 19
+  }).addTo(map);
+}
+
+function pinIcon(apt, sel) {
+  const sz = sel ? 34 : 28;
+  const label = apt.beds === 0 ? 'STU' : (apt.beds ? apt.beds + 'BR' : '?');
+  const avail = yn(apt.available);
+  const cls = 'map-pin' + (sel ? ' sel' : '') + (avail === false ? ' unavail' : '');
+  return L.divIcon({
+    html: `<div class="${cls}" style="width:${sz}px;height:${sz}px;"><div class="pin-label">${label}</div></div>`,
+    className: '', iconSize: [sz, sz], iconAnchor: [sz/2, sz]
+  });
+}
+
+function placeMarkers() {
+  Object.values(markers).forEach(m => map.removeLayer(m));
+  markers = {};
+  APTS.forEach((apt, i) => {
+    if (!apt.lat || !apt.lng) return;
+    markers[i] = L.marker([apt.lat, apt.lng], { icon: pinIcon(apt, false) })
+      .addTo(map)
+      .on('click', () => selectApt(i));
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// FETCH
+// ═══════════════════════════════════════════════════════
+async function fetchData() {
+  try {
+    // When served over https (GitHub Pages), direct fetch works fine
+    const res = await fetch(SHEET_CSV_URL);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const csv = await res.text();
+    APTS = parseCSV(csv);
+    if (!APTS.length) throw new Error('empty');
+    placeMarkers();
+    applyFilters();
+    document.getElementById('loading').style.display = 'none';
+  } catch(e) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('error-msg').style.display = 'flex';
+    console.error('Sheet fetch failed:', e);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// CSV PARSER
+// ═══════════════════════════════════════════════════════
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) return [];
+  const headers = parseRow(lines[0]).map(h =>
+    h.trim().toLowerCase().replace(/\s+/g,'').replace(/[^a-z0-9]/g,'')
+  );
+  const col = k => {
+    const synonyms = { name:['name','apartmentname'], address:['address'], lat:['lat','latitude'],
+      lng:['lng','long','longitude'], rent:['rent','rentcost','cost','price'],
+      beds:['beds','bedrooms','bed'], baths:['baths','bathrooms','bath'],
+      sqft:['sqft','squarefootage','sf'], washerDryer:['washerdryer','wd','inunitwasherdryer'],
+      available:['available','availability'], topFloor:['topfloor','topfloorunit'],
+      nearTrain:['neartrain','neartrainline'], trainLines:['trainlines','trainline'],
+      nearBus:['nearbus','nearbusline'], busLines:['buslines','busline'],
+      gym:['gym','distancetogym'], grocery:['grocery','grocerystore'],
+      tourDate:['tourdate','tour'], url:['url','link','listingurl'],
+      notes:['notes','other','comments'],
+      secDeposit:['securitydeposit','deposit','secdeposit'],
+      leaseTerm:['leaseterm','lease'],
+      utilitiesIncl:['utilitiesincluded','utilities'],
+      parking:['parking'], petFriendly:['petfriendly','pets'],
+      status:['status'], rating:['rating','myrating'],
+      landlord:['landlord','managementcompany'],
+      contact:['contact','contactinfo']
+    };
+    const opts = synonyms[k] || [k];
+    for (const o of opts) { const i = headers.indexOf(o); if (i !== -1) return i; }
+    return -1;
+  };
+  const get = (vals, k) => { const i = col(k); return i !== -1 ? (vals[i]||'').trim() : ''; };
+
+  return lines.slice(1).map(line => {
+    const v = parseRow(line);
+    if (v.every(c => !c.trim())) return null;
+    const apt = {
+      name: get(v,'name') || 'Unnamed',
+      address: get(v,'address'),
+      lat: parseFloat(get(v,'lat')) || 0,
+      lng: parseFloat(get(v,'lng')) || 0,
+      rent: parseInt(get(v,'rent')) || 0,
+      beds: get(v,'beds').toLowerCase() === 'studio' ? 0 : parseInt(get(v,'beds')) || null,
+      baths: parseFloat(get(v,'baths')) || null,
+      sqft: parseInt(get(v,'sqft')) || 0,
+      washerDryer: get(v,'washerDryer'),
+      available: get(v,'available'),
+      topFloor: get(v,'topFloor'),
+      nearTrain: get(v,'nearTrain'),
+      trainLines: get(v,'trainLines'),
+      nearBus: get(v,'nearBus'),
+      busLines: get(v,'busLines'),
+      gym: get(v,'gym'),
+      grocery: get(v,'grocery'),
+      tourDate: get(v,'tourDate'),
+      url: get(v,'url'),
+      notes: get(v,'notes'),
+      secDeposit: get(v,'secDeposit'),
+      leaseTerm: get(v,'leaseTerm'),
+      utilitiesIncl: get(v,'utilitiesIncl'),
+      parking: get(v,'parking'),
+      petFriendly: get(v,'petFriendly'),
+      status: get(v,'status'),
+      rating: get(v,'rating'),
+      landlord: get(v,'landlord'),
+      contact: get(v,'contact'),
+    };
+    return (apt.lat && apt.lng) ? apt : null;
+  }).filter(Boolean);
+}
+
+function parseRow(row) {
+  const res = []; let cur = ''; let inQ = false;
+  for (let i = 0; i < row.length; i++) {
+    const c = row[i];
+    if (c === '"') { if (inQ && row[i+1]==='"') { cur+='"'; i++; } else inQ=!inQ; }
+    else if (c === ',' && !inQ) { res.push(cur); cur=''; }
+    else cur += c;
+  }
+  res.push(cur); return res;
+}
+
+// ═══════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════
+function yn(v) {
+  if (!v) return null;
+  const s = v.toString().toLowerCase().trim();
+  if (['yes','y','true','1'].includes(s)) return true;
+  if (['no','n','false','0'].includes(s)) return false;
+  return null;
+}
+
+function fmtDate(s) {
+  if (!s) return '';
+  try { return new Date(s+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
+  catch { return s; }
+}
+
+// ═══════════════════════════════════════════════════════
+// FILTERS
+// ═══════════════════════════════════════════════════════
+function applyFilters() {
+  const maxRent = parseInt(document.getElementById('f-rent').value)||Infinity;
+  const beds = document.getElementById('f-beds').value;
+  const avail = document.getElementById('f-avail').value;
+  const wd = document.getElementById('f-wd').value;
+  const train = document.getElementById('f-train').value;
+
+  visibleIdxs = APTS.map((_,i)=>i).filter(i => {
+    const a = APTS[i];
+    if (a.rent && a.rent > maxRent) return false;
+    if (beds !== '' && a.beds !== parseInt(beds)) return false;
+    if (avail === 'yes' && yn(a.available) !== true) return false;
+    if (avail === 'no'  && yn(a.available) !== false) return false;
+    if (wd === 'yes' && yn(a.washerDryer) !== true) return false;
+    if (train === 'yes' && yn(a.nearTrain) !== true) return false;
+    return true;
+  });
+
+  // Sort by rent
+  visibleIdxs.sort((a,b) => sortAsc
+    ? (APTS[a].rent||0)-(APTS[b].rent||0)
+    : (APTS[b].rent||0)-(APTS[a].rent||0)
+  );
+
+  // Update markers
+  APTS.forEach((_,i) => {
+    const m = markers[i]; if (!m) return;
+    if (visibleIdxs.includes(i)) { if (!map.hasLayer(m)) m.addTo(map); }
+    else { if (map.hasLayer(m)) map.removeLayer(m); }
+    m.setIcon(pinIcon(APTS[i], i === selectedIdx));
+  });
+
+  renderList();
+}
+
+['f-rent','f-beds','f-avail','f-wd','f-train'].forEach(id =>
+  document.getElementById(id).addEventListener('change', applyFilters)
+);
+
+document.getElementById('list-sort').addEventListener('click', () => {
+  sortAsc = !sortAsc;
+  document.getElementById('list-sort').textContent = sortAsc ? '↑ Rent' : '↓ Rent';
+  applyFilters();
+});
+
+// ═══════════════════════════════════════════════════════
+// RENDER LIST
+// ═══════════════════════════════════════════════════════
+function renderList() {
+  const list = document.getElementById('apt-list');
+  list.innerHTML = '';
+  document.getElementById('list-count').textContent =
+    `${visibleIdxs.length} of ${APTS.length} apartments`;
+
+  visibleIdxs.forEach(i => {
+    const a = APTS[i];
+    const avail = yn(a.available);
+    const card = document.createElement('div');
+    card.className = 'apt-card' + (selectedIdx===i ? ' selected' : '');
+
+    const availTag = avail===true  ? `<span class="tag avail">Available</span>`
+                   : avail===false ? `<span class="tag unavail">Unavailable</span>` : '';
+    const wdTag    = yn(a.washerDryer)===true ? `<span class="tag green">W/D in-unit</span>` : '';
+    const trainTag = a.trainLines ? `<span class="tag blue">🚇 ${a.trainLines}</span>` : '';
+    const topTag   = yn(a.topFloor)===true ? `<span class="tag gold">Top floor</span>` : '';
+    const statusTag= a.status ? `<span class="tag">${a.status}</span>` : '';
+    const ratingTag= a.rating ? `<span class="tag gold">${'★'.repeat(Math.min(parseInt(a.rating),5))}</span>` : '';
+
+    card.innerHTML = `
+      <div class="card-top">
+        <div class="card-name">${a.name}</div>
+        <div class="card-price">${a.rent ? '$'+a.rent.toLocaleString() : '—'}</div>
+      </div>
+      <div class="card-address">${a.address}</div>
+      <div class="card-tags">
+        ${availTag}${statusTag}
+        ${a.beds!=null ? `<span class="tag gold">${a.beds===0?'Studio':a.beds+' bd'}${a.baths?' / '+a.baths+' ba':''}</span>` : ''}
+        ${a.sqft ? `<span class="tag">${a.sqft.toLocaleString()} sqft</span>` : ''}
+        ${wdTag}${topTag}${trainTag}${ratingTag}
+      </div>
+      <div class="card-footer">
+        ${a.tourDate ? `<span class="tour-date">📅 ${fmtDate(a.tourDate)}</span>` : ''}
+        ${a.gym && yn(a.gym)!==false ? `<span>💪 ${a.gym}</span>` : ''}
+      </div>`;
+
+    card.addEventListener('click', () => selectApt(i));
+    list.appendChild(card);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// SELECT
+// ═══════════════════════════════════════════════════════
+function selectApt(i) {
+  selectedIdx = selectedIdx === i ? null : i;
+  applyFilters(); // re-renders list + updates marker icons
+
+  if (selectedIdx === null) {
+    closeSheet(); return;
+  }
+
+  const a = APTS[selectedIdx];
+  map.flyTo([a.lat, a.lng], 15, { duration: 0.6 });
+  renderSheet(a);
+  document.getElementById('bottom-sheet').classList.add('open');
+
+  // On mobile, switch to map to show the pin
+  const isMobile = window.innerWidth < 768;
+  if (isMobile) showTab('map');
+}
+
+function closeSheet() {
+  document.getElementById('bottom-sheet').classList.remove('open');
+  selectedIdx = null;
+  applyFilters();
+}
+
+// ═══════════════════════════════════════════════════════
+// DETAIL SHEET
+// ═══════════════════════════════════════════════════════
+function renderSheet(a) {
+  const avail = yn(a.available);
+  const pps = a.sqft && a.rent ? (a.rent/a.sqft).toFixed(2) : null;
+
+  document.getElementById('sheet-content').innerHTML = `
+    <div class="detail-name">${a.name}</div>
+    <div class="detail-address">${a.address}</div>
+    <div class="detail-price">$${a.rent ? a.rent.toLocaleString() : '—'} <span>/ month</span></div>
+
+    ${avail!==null ? `<div class="avail-pill ${avail?'yes':'no'}">${avail?'✓ Available':'✗ Not available'}</div>` : ''}
+    ${a.status ? `<div style="margin-bottom:10px;font-size:12px;color:var(--text2);">Status: <strong>${a.status}</strong></div>` : ''}
+
+    <div class="detail-section-title">Unit</div>
+    <div class="detail-grid" style="margin-bottom:14px;">
+      ${a.beds!=null ? `<div class="dg-item"><div class="dg-label">Beds</div><div class="dg-val gold">${a.beds===0?'Studio':a.beds}</div></div>` : ''}
+      ${a.baths ? `<div class="dg-item"><div class="dg-label">Baths</div><div class="dg-val">${a.baths}</div></div>` : ''}
+      ${a.sqft ? `<div class="dg-item"><div class="dg-label">Sqft</div><div class="dg-val">${a.sqft.toLocaleString()}</div></div>` : ''}
+      ${pps ? `<div class="dg-item"><div class="dg-label">$/sqft</div><div class="dg-val">$${pps}</div></div>` : ''}
+      ${a.washerDryer ? `<div class="dg-item"><div class="dg-label">W/D</div><div class="dg-val ${yn(a.washerDryer)===true?'green':yn(a.washerDryer)===false?'red':''}">${a.washerDryer}</div></div>` : ''}
+      ${a.topFloor ? `<div class="dg-item"><div class="dg-label">Top floor</div><div class="dg-val ${yn(a.topFloor)===true?'gold':''}">${a.topFloor}</div></div>` : ''}
+      ${a.parking ? `<div class="dg-item"><div class="dg-label">Parking</div><div class="dg-val">${a.parking}</div></div>` : ''}
+      ${a.petFriendly ? `<div class="dg-item"><div class="dg-label">Pets</div><div class="dg-val">${a.petFriendly}</div></div>` : ''}
+    </div>
+
+    <div class="detail-section-title">Lease</div>
+    <div class="detail-grid two" style="margin-bottom:14px;">
+      ${a.leaseTerm ? `<div class="dg-item"><div class="dg-label">Lease term</div><div class="dg-val">${a.leaseTerm}</div></div>` : ''}
+      ${a.secDeposit ? `<div class="dg-item"><div class="dg-label">Deposit</div><div class="dg-val">${a.secDeposit}</div></div>` : ''}
+      ${a.utilitiesIncl ? `<div class="dg-item"><div class="dg-label">Utilities incl.</div><div class="dg-val">${a.utilitiesIncl}</div></div>` : ''}
+    </div>
+
+    <div class="detail-section-title">Transit & Nearby</div>
+    <div class="detail-grid two" style="margin-bottom:14px;">
+      ${a.trainLines ? `<div class="dg-item"><div class="dg-label">Train</div><div class="dg-val blue">🚇 ${a.trainLines}</div></div>` : ''}
+      ${a.busLines ? `<div class="dg-item"><div class="dg-label">Bus</div><div class="dg-val blue">🚌 ${a.busLines}</div></div>` : ''}
+      ${a.gym ? `<div class="dg-item"><div class="dg-label">Gym</div><div class="dg-val">${a.gym}</div></div>` : ''}
+      ${a.grocery ? `<div class="dg-item"><div class="dg-label">Grocery</div><div class="dg-val">${a.grocery}</div></div>` : ''}
+    </div>
+
+    ${a.tourDate ? `
+    <div class="detail-section-title">Tour</div>
+    <div style="margin-bottom:14px;font-size:14px;color:var(--yellow);">📅 ${a.tourDate}</div>` : ''}
+
+    ${a.landlord||a.contact ? `
+    <div class="detail-section-title">Contact</div>
+    <div style="margin-bottom:14px;font-size:13px;color:var(--text2);line-height:1.7;">
+      ${a.landlord ? a.landlord+'<br>' : ''}${a.contact||''}
+    </div>` : ''}
+
+    ${a.rating ? `<div style="margin-bottom:10px;font-size:18px;color:var(--accent);">${'★'.repeat(Math.min(parseInt(a.rating),5))}${'☆'.repeat(5-Math.min(parseInt(a.rating),5))}</div>` : ''}
+
+    ${a.notes ? `<div class="notes-box">${a.notes}</div>` : ''}
+
+    ${a.url ? `<a href="${a.url}" target="_blank" class="action-btn">View Listing →</a>` : ''}
+    <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a.address)}" target="_blank" class="action-btn">Open in Google Maps →</a>
+  `;
+}
+
+// ═══════════════════════════════════════════════════════
+// TABS (mobile)
+// ═══════════════════════════════════════════════════════
+function showTab(tab) {
+  document.getElementById('map-panel').classList.toggle('active', tab==='map');
+  document.getElementById('list-panel').classList.toggle('active', tab==='list');
+  document.getElementById('tab-map').classList.toggle('active', tab==='map');
+  document.getElementById('tab-list').classList.toggle('active', tab==='list');
+  if (tab==='map') setTimeout(()=>map.invalidateSize(), 260);
+}
+</script>
+</body>
+</html>
