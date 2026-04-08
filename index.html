@@ -7,37 +7,18 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-
 :root {
-  --bg: #0f0f0f;
-  --surface: #1a1a1a;
-  --surface2: #242424;
-  --border: #2e2e2e;
-  --text: #f0ede8;
-  --text2: #a09a92;
-  --text3: #5a5550;
-  --accent: #c4a96b;
-  --green: #7ec8a0;
-  --red: #e87c6c;
-  --blue: #7ab8d4;
-  --yellow: #f0d070;
-  --header-h: 52px;
-  --tab-h: 48px;
+  --bg: #0f0f0f; --surface: #1a1a1a; --surface2: #242424; --border: #2e2e2e;
+  --text: #f0ede8; --text2: #a09a92; --text3: #5a5550;
+  --accent: #c4a96b; --green: #7ec8a0; --red: #e87c6c; --blue: #7ab8d4; --yellow: #f0d070;
+  --header-h: 52px; --tab-h: 48px;
 }
-
 html, body { height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; overflow: hidden; }
 
-#header {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
-  height: var(--header-h);
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; gap: 10px; padding: 0 12px;
-}
+#header { position: fixed; top: 0; left: 0; right: 0; z-index: 1000; height: var(--header-h); background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; padding: 0 12px; }
 #header-logo { font-size: 13px; font-weight: 700; letter-spacing: 0.05em; color: var(--accent); white-space: nowrap; }
 #filter-scroll { display: flex; align-items: center; gap: 6px; overflow-x: auto; flex: 1; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
 #filter-scroll::-webkit-scrollbar { display: none; }
-
 .chip { display: flex; align-items: center; gap: 5px; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 5px 10px; font-size: 12px; color: var(--text2); white-space: nowrap; cursor: pointer; flex-shrink: 0; -webkit-tap-highlight-color: transparent; }
 .chip select { background: transparent; border: none; color: var(--text2); font-size: 12px; outline: none; cursor: pointer; -webkit-appearance: none; padding-right: 2px; }
 .chip select option { background: #1a1a1a; }
@@ -52,11 +33,10 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 #list-panel { z-index: 2; background: var(--bg); overflow-y: auto; -webkit-overflow-scrolling: touch; transform: translateX(100%); }
 #map-panel.active { transform: translateX(0); }
 #list-panel.active { transform: translateX(0); }
-
 #map { width: 100%; height: 100%; }
 .leaflet-container { background: #1a1a1a !important; }
 
-#bottom-sheet { position: fixed; left: 0; right: 0; bottom: var(--tab-h); z-index: 500; background: var(--surface); border-top: 1px solid var(--border); border-radius: 16px 16px 0 0; transform: translateY(100%); transition: transform 0.3s ease; max-height: 55vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+#bottom-sheet { position: fixed; left: 0; right: 0; bottom: var(--tab-h); z-index: 500; background: var(--surface); border-top: 1px solid var(--border); border-radius: 16px 16px 0 0; transform: translateY(100%); transition: transform 0.3s ease; max-height: 60vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 #bottom-sheet.open { transform: translateY(0); }
 #sheet-handle { display: flex; justify-content: center; padding: 10px 0 4px; cursor: pointer; }
 #sheet-handle-bar { width: 36px; height: 4px; background: var(--border); border-radius: 2px; }
@@ -77,12 +57,12 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .tour-date { color: var(--yellow); }
 
 .tag { font-size: 11px; padding: 2px 7px; border-radius: 4px; background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
-.tag.green  { background: rgba(126,200,160,0.12); color: var(--green); border-color: rgba(126,200,160,0.25); }
-.tag.red    { background: rgba(232,124,108,0.12); color: var(--red);   border-color: rgba(232,124,108,0.25); }
-.tag.blue   { background: rgba(122,184,212,0.12); color: var(--blue);  border-color: rgba(122,184,212,0.25); }
-.tag.gold   { background: rgba(196,169,107,0.12); color: var(--accent);border-color: rgba(196,169,107,0.25); }
-.tag.avail  { background: rgba(126,200,160,0.18); color: var(--green); border-color: rgba(126,200,160,0.3); font-weight: 600; }
-.tag.unavail{ background: rgba(232,124,108,0.12); color: var(--red);   border-color: rgba(232,124,108,0.25); font-weight: 600; }
+.tag.green   { background: rgba(126,200,160,0.12); color: var(--green); border-color: rgba(126,200,160,0.25); }
+.tag.red     { background: rgba(232,124,108,0.12); color: var(--red);   border-color: rgba(232,124,108,0.25); }
+.tag.blue    { background: rgba(122,184,212,0.12); color: var(--blue);  border-color: rgba(122,184,212,0.25); }
+.tag.gold    { background: rgba(196,169,107,0.12); color: var(--accent);border-color: rgba(196,169,107,0.25); }
+.tag.avail   { background: rgba(126,200,160,0.18); color: var(--green); border-color: rgba(126,200,160,0.3); font-weight: 600; }
+.tag.unavail { background: rgba(232,124,108,0.12); color: var(--red);   border-color: rgba(232,124,108,0.25); font-weight: 600; }
 
 .detail-name { font-size: 17px; font-weight: 700; margin-bottom: 2px; }
 .detail-address { font-size: 12px; color: var(--text3); margin-bottom: 10px; }
@@ -95,7 +75,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .detail-grid.two { grid-template-columns: 1fr 1fr; }
 .dg-item { background: var(--surface2); border-radius: 8px; padding: 8px 10px; }
 .dg-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text3); margin-bottom: 3px; }
-.dg-val { font-size: 13px; font-weight: 600; color: var(--text); }
+.dg-val { font-size: 13px; font-weight: 600; color: var(--text); word-break: break-word; }
 .dg-val.green  { color: var(--green); }
 .dg-val.red    { color: var(--red); }
 .dg-val.blue   { color: var(--blue); }
@@ -111,30 +91,37 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .map-pin.unavail { background: #7a3a35; }
 .pin-label { transform: rotate(45deg); font-size: 9px; font-weight: 700; color: #0f0f0f; line-height: 1; }
 
-#loading { position: fixed; inset: 0; z-index: 9999; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; font-size: 12px; letter-spacing: 0.1em; color: var(--accent); }
-.spinner { width: 28px; height: 28px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+#loading { position: fixed; inset: 0; z-index: 9999; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; font-size: 12px; letter-spacing: 0.08em; color: var(--accent); text-align: center; padding: 32px; }
+.spinner { width: 28px; height: 28px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
 @keyframes spin { to { transform: rotate(360deg); } }
+#load-msg { color: var(--text2); font-size: 12px; }
 
 #error-msg { position: fixed; inset: 0; z-index: 9999; background: var(--bg); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 32px; text-align: center; }
 #error-msg h2 { color: var(--red); font-size: 16px; }
-#error-msg p { font-size: 13px; color: var(--text2); line-height: 1.6; max-width: 300px; }
+#error-msg p { font-size: 13px; color: var(--text2); line-height: 1.6; max-width: 320px; }
+#error-detail { font-size: 11px; color: var(--text3); font-family: monospace; max-width: 320px; word-break: break-all; }
 
 @media (min-width: 768px) {
   #tabs { display: none; }
   #map-panel, #list-panel { bottom: 0; transition: none; transform: none !important; }
   #map-panel { left: 320px; right: 0; }
   #list-panel { left: 0; right: auto; width: 320px; border-right: 1px solid var(--border); z-index: 2; background: var(--bg); }
-  #bottom-sheet { left: 320px; bottom: 0; border-radius: 0; max-height: 42vh; }
+  #bottom-sheet { left: 320px; bottom: 0; border-radius: 0; max-height: 45vh; }
 }
 </style>
 </head>
 <body>
 
-<div id="loading"><div class="spinner"></div>LOADING</div>
+<div id="loading">
+  <div class="spinner"></div>
+  <div>LOADING</div>
+  <div id="load-msg"></div>
+</div>
 
 <div id="error-msg">
   <h2>Could not load sheet</h2>
-  <p>Make sure your Google Sheet is published as CSV (File → Share → Publish to web → CSV) and the URL in this file is correct.</p>
+  <p>Make sure your Google Sheet is published as CSV via File → Share → Publish to web → CSV.</p>
+  <div id="error-detail"></div>
 </div>
 
 <div id="header">
@@ -213,11 +200,51 @@ const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQueQE5zS
 let APTS = [], visibleIdxs = [], selectedIdx = null, sortAsc = true;
 let markers = {}, map;
 
+// ── COLUMN SYNONYMS ──────────────────────────────────────────────────────
+// Keys are internal field names, values are all accepted header spellings
+// (all lowercased, non-alphanumeric stripped before matching)
+const SYNONYMS = {
+  name:          ['name','apartmentname','aptname'],
+  address:       ['address','addr'],
+  lat:           ['lat','latitude'],
+  lng:           ['lng','lon','long','longitude'],
+  rent:          ['rent','rentcost','cost','price','monthlycost'],
+  beds:          ['beds','bed','bedrooms','bedroom'],
+  baths:         ['baths','bath','bathrooms','bathroom'],
+  sqft:          ['sqft','squarefootage','sf','sqfootage'],
+  noise:         ['noise','noiselevel','noisylevel','noiselvl'],
+  washerDryer:   ['washerdryer','wd','inunitwd','inunitwasherdryer','laundry'],
+  available:     ['available','availability','avail'],
+  topFloor:      ['topfloor','topfloorunit','isTopFloor'],
+  nearTrain:     ['neartrain','neartrainline','train'],
+  trainLines:    ['trainlines','trainline','ctaLines','lines'],
+  nearBus:       ['nearbus','nearbusline','bus'],
+  busLines:      ['buslines','busline'],
+  gym:           ['gym','gymDistance','distancetogym','fitnessCenter'],
+  grocery:       ['grocery','grocerystore','groceries'],
+  acType:        ['actype','ac','airconditioningtype','airconditioning','acunit'],
+  outdoor:       ['outdoor','outdoorspace','balcony','outdoor space','outdoorSpace'],
+  tourDate:      ['tourdate','tour','tourscheduled','touron'],
+  url:           ['url','link','listing','listingurl','listinglink'],
+  notes:         ['notes','note','other','comments','comment'],
+  secDeposit:    ['securitydeposit','deposit','secdeposit','security'],
+  leaseTerm:     ['leaseterm','lease','leaselength'],
+  utilitiesIncl: ['utilitiesincluded','utilities','utilitiesincl'],
+  parking:       ['parking','parkinginc','parkingincluded'],
+  petFriendly:   ['petfriendly','pets','petsallowed'],
+  status:        ['status','mystatus'],
+  rating:        ['rating','myrating','score'],
+  landlord:      ['landlord','management','managementcompany','mgmt'],
+  contact:       ['contact','contactinfo','contactname','phone','email'],
+};
+
+// ── INIT ─────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
   initMap();
   await fetchData();
 });
 
+// ── MAP ───────────────────────────────────────────────────────────────────
 function initMap() {
   map = L.map('map', { center: [41.88, -87.65], zoom: 12, zoomControl: false });
   L.control.zoom({ position: 'bottomright' }).addTo(map);
@@ -227,13 +254,13 @@ function initMap() {
 }
 
 function pinIcon(apt, sel) {
-  const sz = sel ? 34 : 28;
-  const label = apt.beds === 0 ? 'STU' : (apt.beds ? apt.beds + 'BR' : '?');
+  const sz  = sel ? 34 : 28;
+  const label = apt.beds === 0 ? 'STU' : (apt.beds ? apt.beds+'BR' : '?');
   const avail = yn(apt.available);
-  const cls = 'map-pin' + (sel ? ' sel' : '') + (avail === false ? ' unavail' : '');
+  const cls = 'map-pin'+(sel?' sel':'')+(avail===false?' unavail':'');
   return L.divIcon({
     html: `<div class="${cls}" style="width:${sz}px;height:${sz}px;"><div class="pin-label">${label}</div></div>`,
-    className: '', iconSize: [sz, sz], iconAnchor: [sz/2, sz]
+    className:'', iconSize:[sz,sz], iconAnchor:[sz/2,sz]
   });
 }
 
@@ -241,47 +268,51 @@ function placeMarkers() {
   Object.values(markers).forEach(m => map.removeLayer(m));
   markers = {};
   APTS.forEach((apt, i) => {
-    if (!apt.lat || !apt.lng) return;
+    if (!apt.lat || !apt.lng) return; // skip if geocoding failed
     markers[i] = L.marker([apt.lat, apt.lng], { icon: pinIcon(apt, false) })
       .addTo(map).on('click', () => selectApt(i));
   });
 }
 
+// ── FETCH & GEOCODE ───────────────────────────────────────────────────────
 async function fetchData() {
   try {
+    setMsg('');
     const res = await fetch(SHEET_CSV_URL);
-    if (!res.ok) throw new Error('HTTP ' + res.status);
+    if (!res.ok) throw new Error('HTTP '+res.status);
     const csv = await res.text();
-    APTS = parseCSV(csv);
-    if (!APTS.length) throw new Error('empty');
 
-    // Geocode any apartments missing lat/lng
+    APTS = parseCSV(csv);
+
+    // Show something even if apartments have no coords yet
+    if (!APTS.length) throw new Error(
+      'No apartments found. Check that your sheet has a header row and at least one data row with a name and address.'
+    );
+
+    // Geocode missing coords before placing markers
     const needsGeo = APTS.filter(a => !a.lat || !a.lng);
     if (needsGeo.length) {
-      setLoading(`Geocoding ${needsGeo.length} address${needsGeo.length>1?'es':''}…`);
-      for (const apt of needsGeo) {
-        await geocode(apt);
-        await sleep(1100); // Nominatim rate limit: 1 req/sec
+      for (let i = 0; i < needsGeo.length; i++) {
+        setMsg(`Looking up address ${i+1} of ${needsGeo.length}…`);
+        await geocode(needsGeo[i]);
+        if (i < needsGeo.length - 1) await sleep(1100); // Nominatim: 1 req/sec
       }
     }
 
     placeMarkers();
     applyFilters();
     document.getElementById('loading').style.display = 'none';
+
   } catch(e) {
     document.getElementById('loading').style.display = 'none';
     document.getElementById('error-msg').style.display = 'flex';
-    console.error('Sheet fetch failed:', e);
+    document.getElementById('error-detail').textContent = e.message;
+    console.error('fetchData failed:', e);
   }
 }
 
-function setLoading(msg) {
-  const el = document.getElementById('loading');
-  el.style.display = 'flex';
-  // Update or add message span
-  let span = el.querySelector('.load-msg');
-  if (!span) { span = document.createElement('span'); span.className = 'load-msg'; el.appendChild(span); }
-  span.textContent = msg;
+function setMsg(txt) {
+  document.getElementById('load-msg').textContent = txt;
 }
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -289,80 +320,83 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 async function geocode(apt) {
   if (!apt.address) return;
   try {
-    const query = encodeURIComponent(apt.address + ', Chicago, IL');
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`,
-      { headers: { 'Accept-Language': 'en', 'User-Agent': 'ChiApts/1.0' } }
-    );
+    // Append Chicago IL if not already there so Nominatim is accurate
+    const addr = /chicago/i.test(apt.address) ? apt.address : apt.address+', Chicago, IL';
+    const url  = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(addr);
+    const res  = await fetch(url, { headers:{'Accept-Language':'en','User-Agent':'ChiApts/1.0'} });
     const data = await res.json();
     if (data && data[0]) {
       apt.lat = parseFloat(data[0].lat);
       apt.lng = parseFloat(data[0].lon);
+    } else {
+      console.warn('No geocode result for:', apt.address);
     }
   } catch(e) {
-    console.warn('Geocode failed for:', apt.address, e);
+    console.warn('Geocode error for:', apt.address, e);
   }
+}
+
+// ── CSV PARSER ────────────────────────────────────────────────────────────
+function normalizeHeader(h) {
+  return h.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
 function parseCSV(text) {
   const lines = text.trim().split(/\r?\n/);
-  if (lines.length < 2) return [];
-  const headers = parseRow(lines[0]).map(h =>
-    h.trim().toLowerCase().replace(/\s+/g,'').replace(/[^a-z0-9]/g,'')
-  );
-  const synonyms = {
-    name:         ['name','apartmentname'],
-    address:      ['address'],
-    lat:          ['lat','latitude'],
-    lng:          ['lng','long','longitude'],
-    rent:         ['rent','rentcost','cost','price'],
-    beds:         ['beds','bedrooms','bed'],
-    baths:        ['baths','bathrooms','bath'],
-    sqft:         ['sqft','squarefootage','sf'],
-    washerDryer:  ['washerdryer','wd','inunitwasherdryer'],
-    available:    ['available','availability'],
-    topFloor:     ['topfloor','topfloorunit'],
-    nearTrain:    ['neartrain','neartrainline'],
-    trainLines:   ['trainlines','trainline'],
-    nearBus:      ['nearbus','nearbusline'],
-    busLines:     ['buslines','busline'],
-    gym:          ['gym','distancetogym'],
-    grocery:      ['grocery','grocerystore'],
-    tourDate:     ['tourdate','tour'],
-    url:          ['url','link','listingurl'],
-    notes:        ['notes','other','comments'],
-    secDeposit:   ['securitydeposit','deposit','secdeposit'],
-    leaseTerm:    ['leaseterm','lease'],
-    utilitiesIncl:['utilitiesincluded','utilities'],
-    parking:      ['parking'],
-    petFriendly:  ['petfriendly','pets'],
-    status:       ['status'],
-    rating:       ['rating','myrating'],
-    landlord:     ['landlord','managementcompany'],
-    contact:      ['contact','contactinfo'],
-    noise:        ['noise','noiselevel','noiselevel'],
-  };
-  const colIdx = k => {
-    for (const s of (synonyms[k] || [k])) {
-      const i = headers.indexOf(s); if (i !== -1) return i;
-    }
-    return -1;
-  };
-  const get = (vals, k) => { const i = colIdx(k); return i !== -1 ? (vals[i]||'').trim() : ''; };
+  if (!lines.length) return [];
 
-  return lines.slice(1).map(line => {
-    const v = parseRow(line);
-    if (v.every(c => !c.trim())) return null;
+  // Find header row — first row that contains at least one recognized synonym
+  const allSynonyms = new Set(Object.values(SYNONYMS).flat());
+  let headerIdx = -1;
+  let headers = [];
+  for (let i = 0; i < Math.min(lines.length, 5); i++) {
+    const row = parseRow(lines[i]).map(normalizeHeader);
+    if (row.some(h => allSynonyms.has(h))) {
+      headerIdx = i;
+      headers = row;
+      break;
+    }
+  }
+  if (headerIdx === -1) {
+    console.error('Could not find header row. Headers seen:', parseRow(lines[0]));
+    throw new Error('Could not find a valid header row in your sheet. Make sure row 1 contains column names like "name", "address", "rent", etc.');
+  }
+
+  // Build column index lookup
+  const colIdx = {};
+  for (const [field, synonymList] of Object.entries(SYNONYMS)) {
+    for (const s of synonymList) {
+      const i = headers.indexOf(s);
+      if (i !== -1) { colIdx[field] = i; break; }
+    }
+  }
+
+  const get = (vals, field) => {
+    const i = colIdx[field];
+    return (i !== undefined && i < vals.length) ? vals[i].trim() : '';
+  };
+
+  const rows = [];
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    const v = parseRow(lines[i]);
+    // Skip completely empty rows
+    if (v.every(c => !c.trim())) continue;
+    // Skip rows with no name AND no address (likely blank/separator rows)
+    const name    = get(v,'name');
+    const address = get(v,'address');
+    if (!name && !address) continue;
+
     const bedsRaw = get(v,'beds');
     const apt = {
-      name:          get(v,'name') || 'Unnamed',
-      address:       get(v,'address'),
-      lat:           parseFloat(get(v,'lat')) || 0,
-      lng:           parseFloat(get(v,'lng')) || 0,
-      rent:          parseInt(get(v,'rent')) || 0,
-      beds:          bedsRaw.toLowerCase() === 'studio' ? 0 : (parseInt(bedsRaw) >= 0 ? parseInt(bedsRaw) : null),
-      baths:         parseFloat(get(v,'baths')) || null,
-      sqft:          parseInt(get(v,'sqft')) || 0,
+      name:          name || address || 'Unnamed',
+      address:       address,
+      lat:           parseFloat(get(v,'lat'))  || 0,
+      lng:           parseFloat(get(v,'lng'))  || 0,
+      rent:          parseInt(get(v,'rent'))   || 0,
+      beds:          bedsRaw.toLowerCase() === 'studio' ? 0 : (bedsRaw !== '' ? parseInt(bedsRaw) : null),
+      baths:         get(v,'baths') !== '' ? parseFloat(get(v,'baths')) : null,
+      sqft:          parseInt(get(v,'sqft'))   || 0,
+      noise:         get(v,'noise'),
       washerDryer:   get(v,'washerDryer'),
       available:     get(v,'available'),
       topFloor:      get(v,'topFloor'),
@@ -372,6 +406,8 @@ function parseCSV(text) {
       busLines:      get(v,'busLines'),
       gym:           get(v,'gym'),
       grocery:       get(v,'grocery'),
+      acType:        get(v,'acType'),
+      outdoor:       get(v,'outdoor'),
       tourDate:      get(v,'tourDate'),
       url:           get(v,'url'),
       notes:         get(v,'notes'),
@@ -384,10 +420,12 @@ function parseCSV(text) {
       rating:        get(v,'rating'),
       landlord:      get(v,'landlord'),
       contact:       get(v,'contact'),
-      noise:         get(v,'noise'),
     };
-    return (apt.lat && apt.lng) ? apt : null;
-  }).filter(Boolean);
+
+    // Always include — geocoding will fill lat/lng if missing
+    rows.push(apt);
+  }
+  return rows;
 }
 
 function parseRow(row) {
@@ -401,11 +439,12 @@ function parseRow(row) {
   res.push(cur); return res;
 }
 
+// ── HELPERS ───────────────────────────────────────────────────────────────
 function yn(v) {
   if (!v) return null;
   const s = v.toString().toLowerCase().trim();
-  if (['yes','y','true','1'].includes(s)) return true;
-  if (['no','n','false','0'].includes(s)) return false;
+  if (['yes','y','true','1','✓'].includes(s)) return true;
+  if (['no','n','false','0','✗','x'].includes(s)) return false;
   return null;
 }
 
@@ -415,6 +454,7 @@ function fmtDate(s) {
   catch { return s; }
 }
 
+// ── FILTERS ───────────────────────────────────────────────────────────────
 function applyFilters() {
   const maxRent = parseInt(document.getElementById('f-rent').value) || Infinity;
   const beds    = document.getElementById('f-beds').value;
@@ -426,10 +466,10 @@ function applyFilters() {
     const a = APTS[i];
     if (a.rent && a.rent > maxRent) return false;
     if (beds !== '' && a.beds !== parseInt(beds)) return false;
-    if (avail === 'yes' && yn(a.available) !== true) return false;
+    if (avail === 'yes' && yn(a.available) !== true)  return false;
     if (avail === 'no'  && yn(a.available) !== false) return false;
-    if (wd === 'yes' && yn(a.washerDryer) !== true) return false;
-    if (train === 'yes' && yn(a.nearTrain) !== true) return false;
+    if (wd === 'yes'    && yn(a.washerDryer) !== true) return false;
+    if (train === 'yes' && yn(a.nearTrain) !== true)  return false;
     return true;
   });
 
@@ -458,6 +498,7 @@ document.getElementById('list-sort').addEventListener('click', () => {
   applyFilters();
 });
 
+// ── RENDER LIST ───────────────────────────────────────────────────────────
 function renderList() {
   const list = document.getElementById('apt-list');
   list.innerHTML = '';
@@ -465,10 +506,10 @@ function renderList() {
     `${visibleIdxs.length} of ${APTS.length} apartments`;
 
   visibleIdxs.forEach(i => {
-    const a = APTS[i];
+    const a     = APTS[i];
     const avail = yn(a.available);
-    const card = document.createElement('div');
-    card.className = 'apt-card' + (selectedIdx === i ? ' selected' : '');
+    const card  = document.createElement('div');
+    card.className = 'apt-card'+(selectedIdx===i?' selected':'');
 
     const availTag  = avail===true  ? `<span class="tag avail">Available</span>`
                     : avail===false ? `<span class="tag unavail">Unavailable</span>` : '';
@@ -476,7 +517,8 @@ function renderList() {
     const trainTag  = a.trainLines ? `<span class="tag blue">🚇 ${a.trainLines}</span>` : '';
     const topTag    = yn(a.topFloor)===true ? `<span class="tag gold">Top floor</span>` : '';
     const statusTag = a.status ? `<span class="tag">${a.status}</span>` : '';
-    const ratingTag = a.rating ? `<span class="tag gold">${'★'.repeat(Math.min(parseInt(a.rating),5))}</span>` : '';
+    const ratingTag = a.rating ? `<span class="tag gold">${'★'.repeat(Math.min(parseInt(a.rating)||0,5))}</span>` : '';
+    const outdoorTag= a.outdoor && yn(a.outdoor)!==false ? `<span class="tag green">🌿 ${a.outdoor}</span>` : '';
 
     card.innerHTML = `
       <div class="card-top">
@@ -488,12 +530,12 @@ function renderList() {
         ${availTag}${statusTag}
         ${a.beds!=null ? `<span class="tag gold">${a.beds===0?'Studio':a.beds+' bd'}${a.baths?' / '+a.baths+' ba':''}</span>` : ''}
         ${a.sqft ? `<span class="tag">${a.sqft.toLocaleString()} sqft</span>` : ''}
-        ${wdTag}${topTag}${trainTag}${ratingTag}
+        ${wdTag}${topTag}${outdoorTag}${trainTag}${ratingTag}
       </div>
       <div class="card-footer">
-        ${a.tourDate ? `<span class="tour-date">📅 ${fmtDate(a.tourDate)}</span>` : ''}
-        ${a.noise ? `<span>🔊 ${a.noise}</span>` : ''}
-        ${a.gym && yn(a.gym)!==false ? `<span>💪 ${a.gym}</span>` : ''}
+        ${a.tourDate  ? `<span class="tour-date">📅 ${fmtDate(a.tourDate)}</span>` : ''}
+        ${a.noise     ? `<span>🔊 ${a.noise}</span>` : ''}
+        ${a.acType    ? `<span>❄️ ${a.acType}</span>` : ''}
       </div>`;
 
     card.addEventListener('click', () => selectApt(i));
@@ -501,12 +543,13 @@ function renderList() {
   });
 }
 
+// ── SELECT ────────────────────────────────────────────────────────────────
 function selectApt(i) {
   selectedIdx = selectedIdx === i ? null : i;
   applyFilters();
   if (selectedIdx === null) { closeSheet(); return; }
   const a = APTS[selectedIdx];
-  map.flyTo([a.lat, a.lng], 15, { duration: 0.6 });
+  if (a.lat && a.lng) map.flyTo([a.lat, a.lng], 15, { duration: 0.6 });
   renderSheet(a);
   document.getElementById('bottom-sheet').classList.add('open');
   if (window.innerWidth < 768) showTab('map');
@@ -518,8 +561,9 @@ function closeSheet() {
   applyFilters();
 }
 
+// ── DETAIL SHEET ──────────────────────────────────────────────────────────
 function dg(label, val, cls='') {
-  if (!val) return '';
+  if (val === null || val === undefined || val === '') return '';
   return `<div class="dg-item"><div class="dg-label">${label}</div><div class="dg-val ${cls}">${val}</div></div>`;
 }
 
@@ -534,37 +578,37 @@ function renderSheet(a) {
 
     ${avail!==null ? `<div class="avail-pill ${avail?'yes':'no'}">${avail?'✓ Available':'✗ Not available'}</div>` : ''}
     ${a.status ? `<div style="margin-bottom:10px;font-size:12px;color:var(--text2);">Status: <strong>${a.status}</strong></div>` : ''}
-    ${a.rating ? `<div style="margin-bottom:12px;font-size:18px;color:var(--accent);">${'★'.repeat(Math.min(parseInt(a.rating),5))}${'☆'.repeat(5-Math.min(parseInt(a.rating),5))}</div>` : ''}
+    ${a.rating ? `<div style="margin-bottom:12px;font-size:18px;color:var(--accent);">${'★'.repeat(Math.min(parseInt(a.rating)||0,5))}${'☆'.repeat(5-Math.min(parseInt(a.rating)||0,5))}</div>` : ''}
 
     <div class="section-title" style="margin-top:0;">Unit</div>
     <div class="detail-grid">
-      ${dg('Beds', a.beds===0?'Studio':(a.beds||null), 'gold')}
-      ${dg('Baths', a.baths)}
-      ${dg('Sqft', a.sqft ? a.sqft.toLocaleString() : null)}
-      ${dg('$/sqft', pps ? '$'+pps : null)}
-      ${dg('W/D', a.washerDryer, yn(a.washerDryer)===true?'green':yn(a.washerDryer)===false?'red':'')}
-      ${dg('Top floor', a.topFloor, yn(a.topFloor)===true?'gold':'')}
-      ${dg('Parking', a.parking)}
-      ${dg('Pets', a.petFriendly)}
+      ${dg('Beds',     a.beds===0?'Studio':(a.beds!=null?a.beds:null), 'gold')}
+      ${dg('Baths',    a.baths)}
+      ${dg('Sqft',     a.sqft ? a.sqft.toLocaleString() : null)}
+      ${dg('$/sqft',   pps ? '$'+pps : null)}
+      ${dg('W/D',      a.washerDryer, yn(a.washerDryer)===true?'green':yn(a.washerDryer)===false?'red':'')}
+      ${dg('Top floor',a.topFloor,    yn(a.topFloor)===true?'gold':'')}
+      ${dg('Parking',  a.parking)}
+      ${dg('Pets',     a.petFriendly)}
+      ${dg('AC',       a.acType)}
+      ${dg('Outdoor',  a.outdoor)}
     </div>
 
     <div class="section-title">Lease</div>
     <div class="detail-grid two">
-      ${dg('Lease term', a.leaseTerm)}
-      ${dg('Deposit', a.secDeposit)}
+      ${dg('Lease term',      a.leaseTerm)}
+      ${dg('Deposit',         a.secDeposit)}
       ${dg('Utilities incl.', a.utilitiesIncl)}
     </div>
 
     <div class="section-title">Transit & Nearby</div>
     <div class="detail-grid two">
-      ${dg('Train', a.trainLines ? '🚇 '+a.trainLines : null, 'blue')}
-      ${dg('Bus', a.busLines ? '🚌 '+a.busLines : null, 'blue')}
-      ${dg('Gym', a.gym)}
+      ${dg('Train',   a.trainLines ? '🚇 '+a.trainLines : null, 'blue')}
+      ${dg('Bus',     a.busLines   ? '🚌 '+a.busLines   : null, 'blue')}
+      ${dg('Gym',     a.gym)}
       ${dg('Grocery', a.grocery)}
+      ${dg('Noise',   a.noise)}
     </div>
-
-    ${a.noise ? `<div class="section-title">Noise</div>
-    <div class="detail-grid two">${dg('Noise level', a.noise)}</div>` : ''}
 
     ${a.tourDate ? `<div class="section-title">Tour</div>
     <div style="margin-bottom:14px;font-size:14px;color:var(--yellow);">📅 ${a.tourDate}</div>` : ''}
@@ -579,6 +623,7 @@ function renderSheet(a) {
   `;
 }
 
+// ── TABS ──────────────────────────────────────────────────────────────────
 function showTab(tab) {
   document.getElementById('map-panel').classList.toggle('active', tab==='map');
   document.getElementById('list-panel').classList.toggle('active', tab==='list');
