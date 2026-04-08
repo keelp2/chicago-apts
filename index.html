@@ -115,6 +115,15 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 #toast { position: fixed; bottom: 60px; left: 50%; transform: translateX(-50%); background: rgba(26,26,26,0.95); border: 1px solid var(--border); color: var(--text); padding: 10px 16px; border-radius: 8px; font-size: 12px; z-index: 2000; opacity: 0; transition: opacity 0.25s; pointer-events: none; max-width: 90%; text-align: center; }
 #toast.show { opacity: 1; }
 
+#link-preview { position: fixed; z-index: 3000; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; width: 220px; box-shadow: 0 4px 20px rgba(0,0,0,0.6); pointer-events: none; opacity: 0; transition: opacity 0.15s; overflow: hidden; }
+#link-preview.show { opacity: 1; }
+#link-preview img { width: 100%; height: 130px; object-fit: cover; display: block; background: var(--surface2); }
+#link-preview-body { padding: 8px 10px; }
+#link-preview-title { font-size: 11px; font-weight: 600; color: var(--text); line-height: 1.4; max-height: 2.8em; overflow: hidden; }
+#link-preview-desc { font-size: 10px; color: var(--text3); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#link-preview-loader { height: 130px; display: flex; align-items: center; justify-content: center; background: var(--surface2); }
+.preview-spinner { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+
 @media (min-width: 768px) {
   #tabs { display: none; }
   #map-panel, #list-panel { bottom: 0; transition: none; transform: none !important; }
@@ -134,6 +143,13 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   <div id="error-detail"></div>
 </div>
 <div id="toast"></div>
+<div id="link-preview">
+  <div id="link-preview-loader"><div class="preview-spinner"></div></div>
+  <div id="link-preview-body">
+    <div id="link-preview-title"></div>
+    <div id="link-preview-desc"></div>
+  </div>
+</div>
 
 <div id="header">
   <div id="header-logo">CHI/APTS</div>
@@ -279,7 +295,70 @@ function toast(msg) {
   toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
 }
 
-// ── APARTMENT MARKERS ─────────────────────────────────────────────────────
+// ── LINK PREVIEW (Microlink) ──────────────────────────────────────────────
+const previewEl    = document.getElementById('link-preview');
+const previewImg   = document.createElement('img');
+const previewLoader= document.getElementById('link-preview-loader');
+const previewTitle = document.getElementById('link-preview-title');
+const previewDesc  = document.getElementById('link-preview-desc');
+const previewBody  = document.getElementById('link-preview-body');
+const previewCache = {};
+let   previewTimer;
+
+previewEl.insertBefore(previewImg, previewBody);
+previewImg.style.display = 'none';
+
+function showPreview(apt, x, y) {
+  if (!apt.url) return;
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(async () => {
+    // Position
+    const pw = 220, ph = 180;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    let left = x + 14, top = y - ph / 2;
+    if (left + pw > vw - 8) left = x - pw - 14;
+    if (top < 60) top = 60;
+    if (top + ph > vh - 60) top = vh - ph - 60;
+    previewEl.style.left = left + 'px';
+    previewEl.style.top  = top  + 'px';
+
+    // Show loader state
+    previewImg.style.display   = 'none';
+    previewLoader.style.display= 'flex';
+    previewTitle.textContent   = '';
+    previewDesc.textContent    = '';
+    previewEl.classList.add('show');
+
+    // Fetch (cached)
+    if (!previewCache[apt.url]) {
+      try {
+        const res  = await fetch(`https://api.microlink.io?url=${encodeURIComponent(apt.url)}`);
+        const json = await res.json();
+        previewCache[apt.url] = json.data || {};
+      } catch(e) {
+        previewCache[apt.url] = {};
+      }
+    }
+
+    const data = previewCache[apt.url];
+    previewLoader.style.display = 'none';
+    previewTitle.textContent = data.title || apt.name || '';
+    previewDesc.textContent  = apt.address || '';
+
+    if (data.image?.url) {
+      previewImg.src = data.image.url;
+      previewImg.style.display = 'block';
+      previewImg.onerror = () => { previewImg.style.display = 'none'; };
+    }
+  }, 300);
+}
+
+function hidePreview() {
+  clearTimeout(previewTimer);
+  previewEl.classList.remove('show');
+}
+
+
 function pinIcon(apt, sel) {
   const sz  = sel ? 34 : 28;
   const lbl = apt.beds === 0 ? 'STU' : (apt.beds ? apt.beds+'BR' : '?');
@@ -297,7 +376,10 @@ function placeMarkers() {
   APTS.forEach((apt, i) => {
     if (!apt.lat || !apt.lng) return;
     markers[i] = L.marker([apt.lat, apt.lng], { icon: pinIcon(apt, false), zIndexOffset: 500 })
-      .addTo(map).on('click', () => selectApt(i));
+      .addTo(map)
+      .on('click', () => selectApt(i))
+      .on('mouseover', (e) => showPreview(apt, e.originalEvent.clientX, e.originalEvent.clientY))
+      .on('mouseout',  ()  => hidePreview());
   });
 }
 
@@ -397,11 +479,11 @@ async function loadTrainLines() {
     const lng = parseFloat(s.location?.longitude || s.lon);
     if (!lat || !lng) return;
     const stationName = s.station_name || s.stationname || s.station_descriptive_name || 'Station';
-    const groupKey = s.map_id || s.station_id || s.stop_id || stationName;
-    if (!byStation.has(groupKey)) {
-      byStation.set(groupKey, { lat, lng, name: stationName, lines: new Set() });
+
+    if (!byStation.has(stationName)) {
+      byStation.set(stationName, { lat, lng, name: stationName, lines: new Set() });
     }
-    const entry = byStation.get(groupKey);
+    const entry = byStation.get(stationName);
     Object.keys(CTA_LINES).forEach(k => {
       if (s[k] === true || s[k] === 'true' || s[k] === '1' || s[k] === 1) {
         entry.lines.add(CTA_LINES[k].name);
@@ -483,7 +565,7 @@ async function loadBusStops() {
 async function loadOverpass(type) {
   const bbox = '41.64,-87.85,42.05,-87.52';
   const queries = {
-    gym: `[out:json][timeout:60];(node["leisure"="fitness_centre"](${bbox});way["leisure"="fitness_centre"](${bbox});node["leisure"="sports_centre"](${bbox});way["leisure"="sports_centre"](${bbox});node["amenity"="gym"](${bbox});way["amenity"="gym"](${bbox});relation["leisure"="fitness_centre"](${bbox}););out center;`,
+    gym: `[out:json][timeout:60];(node["leisure"="fitness_centre"](${bbox});way["leisure"="fitness_centre"](${bbox});node["leisure"="sports_centre"](${bbox});way["leisure"="sports_centre"](${bbox}););out center;`,
     grocery: `[out:json][timeout:60];(node["shop"="supermarket"](${bbox});way["shop"="supermarket"](${bbox});node["shop"="grocery"](${bbox});way["shop"="grocery"](${bbox});node["shop"="convenience"](${bbox}););out center;`,
     bus: `[out:json][timeout:60];(node["highway"="bus_stop"](${bbox}););out;`
   };
