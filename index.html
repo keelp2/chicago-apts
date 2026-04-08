@@ -207,7 +207,6 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQueQE5zSZ4CFNzB3Mmzzwg_p3gxLk7CPm10htt_t0F8iS5riuUA0tBonPha7c8voUEjTNr-kP5CZFz/pub?gid=0&single=true&output=csv';
 
 // ── CTA LINE COLORS ───────────────────────────────────────────────────────
-// Keys match the boolean column names from the CTA stops dataset
 const CTA_LINES = {
   red:  { name: 'Red',    color: '#c60c30' },
   blue: { name: 'Blue',   color: '#00a1de' },
@@ -218,6 +217,14 @@ const CTA_LINES = {
   p:    { name: 'Purple', color: '#522398' },
   pexp: { name: 'Purple', color: '#522398' },
   y:    { name: 'Yellow', color: '#f9e300' },
+};
+
+// Maps various property values → CTA_LINES key
+const LINE_NAME_MAP = {
+  'red':'red','blue':'blue','brown':'brn','brn':'brn',
+  'green':'g','g':'g','orange':'org','org':'org',
+  'pink':'pnk','pnk':'pnk','purple':'p','p':'p',
+  'purple express':'pexp','pexp':'pexp','yellow':'y','y':'y',
 };
 
 const SYNONYMS = {
@@ -342,7 +349,8 @@ async function loadOverlay(type) {
 
 // ── CTA TRAIN LINES + STATIONS ────────────────────────────────────────────
 async function loadTrainLines() {
-  const linesUrl = 'https://data.cityofchicago.org/resource/vrpq-8xy5.geojson?$limit=5000';
+  // FIX: updated dataset ID from vrpq-8xy5 (retired) → xbyr-jnvx
+  const linesUrl = 'https://data.cityofchicago.org/resource/xbyr-jnvx.geojson?$limit=5000';
   const stopsUrl = 'https://data.cityofchicago.org/resource/8pix-ypme.json?$limit=2000';
 
   const [linesRes, stopsRes] = await Promise.all([
@@ -355,15 +363,28 @@ async function loadTrainLines() {
   // Draw colored polylines per CTA line
   if (linesGeo.features) {
     linesGeo.features.forEach(f => {
-      const lines = (f.properties?.LINES || '').toLowerCase().split(',').map(s=>s.trim()).filter(Boolean);
-      lines.forEach(lineKey => {
-        // Map LINES property names to our color keys
-        const keyMap = { red:'red', blue:'blue', brown:'brn', green:'g', orange:'org', pink:'pnk', purple:'p', 'purple express':'pexp', yellow:'y' };
-        const k = keyMap[lineKey] || lineKey;
+      // The new dataset may use 'LINES', 'lines', or 'lines_served' — check all
+      const rawLines = f.properties?.LINES || f.properties?.lines || f.properties?.lines_served
+                    || f.properties?.LINE  || f.properties?.line  || '';
+      const lineTokens = rawLines.toString().toLowerCase().split(/[,/\s]+/).map(s=>s.trim()).filter(Boolean);
+
+      // If no LINES property, try to infer from a single color field
+      const colorField = f.properties?.COLOR || f.properties?.color || f.properties?.LONGNAME || '';
+      if (lineTokens.length === 0 && colorField) {
+        lineTokens.push(colorField.toLowerCase().replace(/\s+line$/,'').trim());
+      }
+
+      if (lineTokens.length === 0) {
+        // Last resort: draw in gray
+        const layer = L.geoJSON(f, { style: { color: '#888', weight: 3, opacity: 0.6 } });
+        overlayLayers.train.push(layer);
+        return;
+      }
+
+      lineTokens.forEach(token => {
+        const k     = LINE_NAME_MAP[token] || token;
         const color = CTA_LINES[k]?.color || '#888';
-        const layer = L.geoJSON(f, {
-          style: { color, weight: 3.5, opacity: 0.85 }
-        });
+        const layer = L.geoJSON(f, { style: { color, weight: 3.5, opacity: 0.85 } });
         overlayLayers.train.push(layer);
       });
     });
@@ -381,7 +402,6 @@ async function loadTrainLines() {
       byStation.set(stationName, { lat, lng, name: stationName, lines: new Set() });
     }
     const entry = byStation.get(stationName);
-    // Detect which lines serve this station
     Object.keys(CTA_LINES).forEach(k => {
       if (s[k] === true || s[k] === 'true' || s[k] === '1' || s[k] === 1) {
         entry.lines.add(CTA_LINES[k].name);
@@ -389,7 +409,6 @@ async function loadTrainLines() {
     });
   });
 
-  // Draw a station marker per station, colored by line(s)
   byStation.forEach(st => {
     const lineList = Array.from(st.lines);
     const size = lineList.length > 1 ? 16 : 12;
@@ -401,16 +420,13 @@ async function loadTrainLines() {
       const color = Object.values(CTA_LINES).find(c => c.name === lineList[0])?.color || '#888';
       html = `<div class="stop-dot" style="width:12px;height:12px;background:${color};"></div>`;
     } else {
-      // Multi-line station: pie wedges using conic-gradient
       const colors = lineList.map(name => Object.values(CTA_LINES).find(c => c.name === name)?.color || '#888');
       const step = 100 / colors.length;
-      const stops = colors.map((c, i) => `${c} ${i*step}% ${(i+1)*step}%`).join(', ');
-      html = `<div class="multi-station" style="width:${size}px;height:${size}px;background:conic-gradient(${stops});"></div>`;
+      const stops2 = colors.map((c, i) => `${c} ${i*step}% ${(i+1)*step}%`).join(', ');
+      html = `<div class="multi-station" style="width:${size}px;height:${size}px;background:conic-gradient(${stops2});"></div>`;
     }
 
-    const icon = L.divIcon({
-      html, className:'', iconSize:[size,size], iconAnchor:[size/2,size/2]
-    });
+    const icon = L.divIcon({ html, className:'', iconSize:[size,size], iconAnchor:[size/2,size/2] });
 
     const lineBadges = lineList.map(name => {
       const color = Object.values(CTA_LINES).find(c => c.name === name)?.color || '#888';
@@ -427,7 +443,6 @@ async function loadTrainLines() {
 
 // ── BUS STOPS ─────────────────────────────────────────────────────────────
 async function loadBusStops() {
-  // Try Chicago open data first; fall back to Overpass
   const url = 'https://data.cityofchicago.org/resource/qs84-j7wh.json?$limit=15000';
   try {
     const res = await fetch(url);
@@ -435,7 +450,6 @@ async function loadBusStops() {
     const data = await res.json();
     if (!Array.isArray(data) || data.length === 0) throw new Error('empty');
     data.forEach(s => {
-      // This dataset has 'point_x' / 'point_y' or 'the_geom'
       let lat, lng;
       if (s.location?.latitude) {
         lat = parseFloat(s.location.latitude);
@@ -466,40 +480,12 @@ async function loadBusStops() {
 }
 
 // ── OVERPASS (gyms, grocery, bus fallback) ────────────────────────────────
-// Use a tighter bbox and split into smaller queries to avoid timeouts
 async function loadOverpass(type) {
-  // Chicago bbox: south,west,north,east
   const bbox = '41.64,-87.85,42.05,-87.52';
-
   const queries = {
-    gym: `
-      [out:json][timeout:60];
-      (
-        node["leisure"="fitness_centre"](${bbox});
-        way["leisure"="fitness_centre"](${bbox});
-        node["leisure"="sports_centre"](${bbox});
-        way["leisure"="sports_centre"](${bbox});
-      );
-      out center;
-    `,
-    grocery: `
-      [out:json][timeout:60];
-      (
-        node["shop"="supermarket"](${bbox});
-        way["shop"="supermarket"](${bbox});
-        node["shop"="grocery"](${bbox});
-        way["shop"="grocery"](${bbox});
-        node["shop"="convenience"](${bbox});
-      );
-      out center;
-    `,
-    bus: `
-      [out:json][timeout:60];
-      (
-        node["highway"="bus_stop"](${bbox});
-      );
-      out;
-    `
+    gym: `[out:json][timeout:60];(node["leisure"="fitness_centre"](${bbox});way["leisure"="fitness_centre"](${bbox});node["leisure"="sports_centre"](${bbox});way["leisure"="sports_centre"](${bbox}););out center;`,
+    grocery: `[out:json][timeout:60];(node["shop"="supermarket"](${bbox});way["shop"="supermarket"](${bbox});node["shop"="grocery"](${bbox});way["shop"="grocery"](${bbox});node["shop"="convenience"](${bbox}););out center;`,
+    bus: `[out:json][timeout:60];(node["highway"="bus_stop"](${bbox}););out;`
   };
 
   const cfg = {
@@ -508,7 +494,6 @@ async function loadOverpass(type) {
     bus:     { emoji: '',   bg: '#fff',    text: '#333',    border: '#555' },
   }[type];
 
-  // Try multiple Overpass endpoints
   const endpoints = [
     'https://overpass-api.de/api/interpreter',
     'https://overpass.kumi.systems/api/interpreter',
@@ -533,9 +518,6 @@ async function loadOverpass(type) {
   }
   if (!data) throw lastErr || new Error('All Overpass endpoints failed');
 
-  console.log(type, 'overlay: got', data.elements?.length || 0, 'results');
-
-  // Dedupe
   const seen = new Set();
   (data.elements || []).forEach(el => {
     const lat = el.lat || el.center?.lat;
@@ -572,7 +554,6 @@ function updateLegend() {
   const rows = [];
 
   if (overlayOn.train) {
-    // Unique line names only
     const seen = new Set();
     Object.values(CTA_LINES).forEach(cfg => {
       if (seen.has(cfg.name)) return;
@@ -581,15 +562,9 @@ function updateLegend() {
     });
     rows.push(`<div class="legend-row"><div class="legend-dot" style="background:conic-gradient(#c60c30 0% 50%, #00a1de 50% 100%);"></div>Multi-line station</div>`);
   }
-  if (overlayOn.bus) {
-    rows.push(`<div class="legend-row"><div class="bus-stop-icon" style="width:10px;height:10px;"></div>Bus stop</div>`);
-  }
-  if (overlayOn.gym) {
-    rows.push(`<div class="legend-row"><span style="font-size:12px;">💪</span> Gym / Fitness</div>`);
-  }
-  if (overlayOn.grocery) {
-    rows.push(`<div class="legend-row"><span style="font-size:12px;">🛒</span> Grocery store</div>`);
-  }
+  if (overlayOn.bus)     rows.push(`<div class="legend-row"><div class="bus-stop-icon" style="width:10px;height:10px;"></div>Bus stop</div>`);
+  if (overlayOn.gym)     rows.push(`<div class="legend-row"><span style="font-size:12px;">💪</span> Gym / Fitness</div>`);
+  if (overlayOn.grocery) rows.push(`<div class="legend-row"><span style="font-size:12px;">🛒</span> Grocery store</div>`);
 
   legend.innerHTML = rows.join('');
   legend.classList.toggle('visible', rows.length > 0);
