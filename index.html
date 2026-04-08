@@ -254,6 +254,17 @@ async function fetchData() {
     const csv = await res.text();
     APTS = parseCSV(csv);
     if (!APTS.length) throw new Error('empty');
+
+    // Geocode any apartments missing lat/lng
+    const needsGeo = APTS.filter(a => !a.lat || !a.lng);
+    if (needsGeo.length) {
+      setLoading(`Geocoding ${needsGeo.length} address${needsGeo.length>1?'es':''}…`);
+      for (const apt of needsGeo) {
+        await geocode(apt);
+        await sleep(1100); // Nominatim rate limit: 1 req/sec
+      }
+    }
+
     placeMarkers();
     applyFilters();
     document.getElementById('loading').style.display = 'none';
@@ -261,6 +272,35 @@ async function fetchData() {
     document.getElementById('loading').style.display = 'none';
     document.getElementById('error-msg').style.display = 'flex';
     console.error('Sheet fetch failed:', e);
+  }
+}
+
+function setLoading(msg) {
+  const el = document.getElementById('loading');
+  el.style.display = 'flex';
+  // Update or add message span
+  let span = el.querySelector('.load-msg');
+  if (!span) { span = document.createElement('span'); span.className = 'load-msg'; el.appendChild(span); }
+  span.textContent = msg;
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function geocode(apt) {
+  if (!apt.address) return;
+  try {
+    const query = encodeURIComponent(apt.address + ', Chicago, IL');
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`,
+      { headers: { 'Accept-Language': 'en', 'User-Agent': 'ChiApts/1.0' } }
+    );
+    const data = await res.json();
+    if (data && data[0]) {
+      apt.lat = parseFloat(data[0].lat);
+      apt.lng = parseFloat(data[0].lon);
+    }
+  } catch(e) {
+    console.warn('Geocode failed for:', apt.address, e);
   }
 }
 
