@@ -384,35 +384,58 @@ async function loadBusStops() {
 
 // Gyms + grocery via OpenStreetMap Overpass
 async function loadOverpass(type) {
-  const bounds = '41.64,-87.85,42.05,-87.52'; // Chicago bounding box
+  const bounds = '41.64,-87.85,42.05,-87.52';
   const queries = {
-    gym:     `node["leisure"~"fitness_centre|sports_centre"](${bounds});node["amenity"="gym"](${bounds});`,
-    grocery: `node["shop"~"supermarket|grocery|convenience"](${bounds});`,
-    bus:     `node["highway"="bus_stop"](${bounds});`
+    gym: `
+      node["leisure"~"^(fitness_centre|sports_centre)$"](${bounds});
+      way["leisure"~"^(fitness_centre|sports_centre)$"](${bounds});
+      node["amenity"="gym"](${bounds});
+      node["name"~"Equinox|Planet Fitness|LA Fitness|Orangetheory|CrossFit|YMCA|Life Time|24 Hour Fitness|Gold's Gym|F45|Barry's|SoulCycle|Anytime Fitness",i](${bounds});
+    `,
+    grocery: `
+      node["shop"~"^(supermarket|grocery)$"](${bounds});
+      way["shop"~"^(supermarket|grocery)$"](${bounds});
+      node["name"~"Whole Foods|Trader Joe|Jewel|Mariano|Aldi|Kroger|Costco|Target|Walmart|Plum Market|Pete's|Food 4 Less",i](${bounds});
+    `,
+    bus: `node["highway"="bus_stop"](${bounds});`
   };
-  const q = `[out:json][timeout:25];(${queries[type]});out 500;`;
-  const res  = await fetch('https://overpass-api.de/api/interpreter', {
-    method:'POST', body:'data='+encodeURIComponent(q)
+  const q = `[out:json][timeout:30];(${queries[type]});out center 1000;`;
+
+  const res = await fetch('https://overpass-api.de/api/interpreter', {
+    method: 'POST', body: 'data=' + encodeURIComponent(q)
   });
   const data = await res.json();
+  console.log(type, 'overlay: got', data.elements?.length, 'results');
 
   const cfg = {
-    gym:     { emoji:'💪', color:'#7ec8a0' },
-    grocery: { emoji:'🛒', color:'#7ab8d4' },
-    bus:     { emoji:'', color:'#aaa' },
+    gym:     { emoji: '💪', bg: '#2a3d2f', text: '#7ec8a0', border: '#7ec8a0' },
+    grocery: { emoji: '🛒', bg: '#1e2e3a', text: '#7ab8d4', border: '#7ab8d4' },
+    bus:     { emoji: '',   bg: '#fff',    text: '#333',    border: '#555' },
   }[type];
 
-  (data.elements||[]).forEach(el => {
-    if (!el.lat || !el.lon) return;
+  // Dedupe by name to avoid duplicates from node+way queries
+  const seen = new Set();
+  (data.elements || []).forEach(el => {
+    const lat = el.lat || el.center?.lat;
+    const lon = el.lon || el.center?.lon;
+    if (!lat || !lon) return;
     const name = el.tags?.name || '';
+    const key  = name || `${lat.toFixed(4)},${lon.toFixed(4)}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+
+    const label = name.length > 20 ? name.slice(0, 20) + '…' : name;
+
     const icon = L.divIcon({
       html: type === 'bus'
         ? `<div class="bus-stop-icon" style="width:9px;height:9px;"></div>`
-        : `<div style="background:${cfg.color};border:1.5px solid #111;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:600;color:#111;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,0.4);">${cfg.emoji} ${name.length>18?name.slice(0,18)+'…':name}</div>`,
-      className:'', iconAnchor: type==='bus' ? [4,4] : [0,10]
+        : `<div style="background:${cfg.bg};border:1.5px solid ${cfg.border};border-radius:5px;padding:2px 6px;font-size:10px;font-weight:700;color:${cfg.text};white-space:nowrap;box-shadow:0 1px 5px rgba(0,0,0,0.5);line-height:1.4;">${cfg.emoji} ${label}</div>`,
+      className: '',
+      iconAnchor: type === 'bus' ? [4, 4] : [0, 0]
     });
-    const layer = L.marker([el.lat, el.lon], { icon, zIndexOffset:-300 });
-    if (name) layer.bindTooltip(name, { direction:'top' });
+
+    const layer = L.marker([lat, lon], { icon, zIndexOffset: -300 });
+    if (name) layer.bindTooltip(name, { direction: 'top', offset: [0, -4] });
     overlayLayers[type === 'bus' ? 'bus' : type].push(layer);
   });
 }
@@ -474,17 +497,25 @@ function setMsg(txt) { document.getElementById('load-msg').textContent = txt; }
 function sleep(ms)   { return new Promise(r => setTimeout(r, ms)); }
 
 async function geocode(apt) {
-  if (!apt.address) return;
+  if (!apt.address) { console.warn('No address for:', apt.name); return; }
   try {
-    const addr = /chicago/i.test(apt.address) ? apt.address : apt.address+', Chicago, IL';
+    const addr = /chicago/i.test(apt.address) ? apt.address : apt.address + ', Chicago, IL';
+    console.log('Geocoding:', addr);
     const res  = await fetch(
-      'https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(addr),
-      { headers:{'Accept-Language':'en','User-Agent':'ChiApts/1.0'} }
+      'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(addr),
+      { headers: { 'Accept-Language': 'en', 'User-Agent': 'ChiApts/1.0' } }
     );
     const data = await res.json();
-    if (data?.[0]) { apt.lat = parseFloat(data[0].lat); apt.lng = parseFloat(data[0].lon); }
-    else console.warn('No geocode result for:', apt.address);
-  } catch(e) { console.warn('Geocode error:', apt.address, e); }
+    if (data?.[0]) {
+      apt.lat = parseFloat(data[0].lat);
+      apt.lng = parseFloat(data[0].lon);
+      console.log('Geocoded', apt.name, '->', apt.lat, apt.lng);
+    } else {
+      console.warn('No geocode result for:', apt.address, '— apartment will still appear in list but not on map');
+    }
+  } catch(e) {
+    console.warn('Geocode error for:', apt.address, e);
+  }
 }
 
 // ── CSV PARSER ────────────────────────────────────────────────────────────
@@ -631,7 +662,7 @@ function renderList() {
       <div class="card-tags">
         ${availTag}${statusTag}
         ${a.beds!=null?`<span class="tag gold">${a.beds===0?'Studio':a.beds+' bd'}${a.baths?' / '+a.baths+' ba':''}</span>`:''}
-        ${a.sqft?`<span class="tag">${a.sqft.toLocaleString()} sqft`:''}
+        ${a.sqft?`<span class="tag">${a.sqft.toLocaleString()} sqft</span>`:''}
         ${wdTag}${topTag}${outdoorTag}${ratingTag}
       </div>
       <div class="card-footer">
