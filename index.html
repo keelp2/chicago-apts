@@ -117,12 +117,13 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 
 #link-preview { position: fixed; z-index: 3000; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; width: 220px; box-shadow: 0 4px 20px rgba(0,0,0,0.6); pointer-events: none; opacity: 0; transition: opacity 0.15s; overflow: hidden; }
 #link-preview.show { opacity: 1; }
-#link-preview img { width: 100%; height: 130px; object-fit: cover; display: block; background: var(--surface2); }
-#link-preview-body { padding: 8px 10px; }
-#link-preview-title { font-size: 11px; font-weight: 600; color: var(--text); line-height: 1.4; max-height: 2.8em; overflow: hidden; }
-#link-preview-desc { font-size: 10px; color: var(--text3); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#link-preview-loader { height: 130px; display: flex; align-items: center; justify-content: center; background: var(--surface2); }
-.preview-spinner { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+#link-preview-body { padding: 10px 12px; }
+#link-preview-source { font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent); margin-bottom: 4px; }
+#link-preview-title { font-size: 12px; font-weight: 600; color: var(--text); line-height: 1.4; max-height: 3em; overflow: hidden; margin-bottom: 4px; }
+#link-preview-desc { font-size: 11px; color: var(--text2); line-height: 1.4; max-height: 2.8em; overflow: hidden; }
+#link-preview-url { font-size: 10px; color: var(--text3); margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#link-preview-loader { padding: 14px 12px; display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text3); }
+.preview-spinner { flex-shrink: 0; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
 
 @media (min-width: 768px) {
   #tabs { display: none; }
@@ -144,10 +145,12 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 </div>
 <div id="toast"></div>
 <div id="link-preview">
-  <div id="link-preview-loader"><div class="preview-spinner"></div></div>
-  <div id="link-preview-body">
+  <div id="link-preview-loader"><div class="preview-spinner"></div> Loading…</div>
+  <div id="link-preview-body" style="display:none;">
+    <div id="link-preview-source"></div>
     <div id="link-preview-title"></div>
     <div id="link-preview-desc"></div>
+    <div id="link-preview-url"></div>
   </div>
 </div>
 
@@ -296,24 +299,35 @@ function toast(msg) {
 }
 
 // ── LINK PREVIEW (Microlink) ──────────────────────────────────────────────
-const previewEl    = document.getElementById('link-preview');
-const previewImg   = document.createElement('img');
-const previewLoader= document.getElementById('link-preview-loader');
-const previewTitle = document.getElementById('link-preview-title');
-const previewDesc  = document.getElementById('link-preview-desc');
-const previewBody  = document.getElementById('link-preview-body');
-const previewCache = {};
+const previewEl     = document.getElementById('link-preview');
+const previewLoader = document.getElementById('link-preview-loader');
+const previewBody   = document.getElementById('link-preview-body');
+const previewSource = document.getElementById('link-preview-source');
+const previewTitle  = document.getElementById('link-preview-title');
+const previewDesc   = document.getElementById('link-preview-desc');
+const previewUrl    = document.getElementById('link-preview-url');
+const previewCache  = {};
 let   previewTimer;
 
-previewEl.insertBefore(previewImg, previewBody);
-previewImg.style.display = 'none';
+function sourceName(url) {
+  try {
+    const h = new URL(url).hostname.replace('www.','');
+    if (h.includes('zillow'))        return 'Zillow';
+    if (h.includes('apartments'))    return 'Apartments.com';
+    if (h.includes('facebook'))      return 'Facebook';
+    if (h.includes('craigslist'))    return 'Craigslist';
+    if (h.includes('trulia'))        return 'Trulia';
+    if (h.includes('realtor'))       return 'Realtor.com';
+    return h;
+  } catch { return ''; }
+}
 
 function showPreview(apt, x, y) {
   if (!apt.url) return;
   clearTimeout(previewTimer);
   previewTimer = setTimeout(async () => {
     // Position
-    const pw = 220, ph = 180;
+    const pw = 220, ph = 120;
     const vw = window.innerWidth, vh = window.innerHeight;
     let left = x + 14, top = y - ph / 2;
     if (left + pw > vw - 8) left = x - pw - 14;
@@ -322,11 +336,9 @@ function showPreview(apt, x, y) {
     previewEl.style.left = left + 'px';
     previewEl.style.top  = top  + 'px';
 
-    // Show loader state
-    previewImg.style.display   = 'none';
-    previewLoader.style.display= 'flex';
-    previewTitle.textContent   = '';
-    previewDesc.textContent    = '';
+    // Show loader
+    previewLoader.style.display = 'flex';
+    previewBody.style.display   = 'none';
     previewEl.classList.add('show');
 
     // Fetch (cached)
@@ -342,14 +354,11 @@ function showPreview(apt, x, y) {
 
     const data = previewCache[apt.url];
     previewLoader.style.display = 'none';
-    previewTitle.textContent = data.title || apt.name || '';
-    previewDesc.textContent  = apt.address || '';
-
-    if (data.image?.url) {
-      previewImg.src = data.image.url;
-      previewImg.style.display = 'block';
-      previewImg.onerror = () => { previewImg.style.display = 'none'; };
-    }
+    previewBody.style.display   = 'block';
+    previewSource.textContent   = sourceName(apt.url);
+    previewTitle.textContent    = data.title || apt.name || '';
+    previewDesc.textContent     = data.description || '';
+    previewUrl.textContent      = apt.address || '';
   }, 300);
 }
 
