@@ -145,7 +145,6 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 </div>
 <div id="toast"></div>
 <div id="link-preview">
-  <div id="link-preview-loader"><div class="preview-spinner"></div> Loading…</div>
   <div id="link-preview-body" style="display:none;">
     <div id="link-preview-source"></div>
     <div id="link-preview-title"></div>
@@ -298,26 +297,24 @@ function toast(msg) {
   toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
 }
 
-// ── LINK PREVIEW (Microlink) ──────────────────────────────────────────────
+// ── LINK PREVIEW ─────────────────────────────────────────────────────────
 const previewEl     = document.getElementById('link-preview');
-const previewLoader = document.getElementById('link-preview-loader');
 const previewBody   = document.getElementById('link-preview-body');
 const previewSource = document.getElementById('link-preview-source');
 const previewTitle  = document.getElementById('link-preview-title');
 const previewDesc   = document.getElementById('link-preview-desc');
 const previewUrl    = document.getElementById('link-preview-url');
-const previewCache  = {};
 let   previewTimer;
 
 function sourceName(url) {
   try {
     const h = new URL(url).hostname.replace('www.','');
-    if (h.includes('zillow'))        return 'Zillow';
-    if (h.includes('apartments'))    return 'Apartments.com';
-    if (h.includes('facebook'))      return 'Facebook';
-    if (h.includes('craigslist'))    return 'Craigslist';
-    if (h.includes('trulia'))        return 'Trulia';
-    if (h.includes('realtor'))       return 'Realtor.com';
+    if (h.includes('zillow'))      return 'Zillow';
+    if (h.includes('apartments'))  return 'Apartments.com';
+    if (h.includes('facebook'))    return 'Facebook';
+    if (h.includes('craigslist'))  return 'Craigslist';
+    if (h.includes('trulia'))      return 'Trulia';
+    if (h.includes('realtor'))     return 'Realtor.com';
     return h;
   } catch { return ''; }
 }
@@ -325,9 +322,8 @@ function sourceName(url) {
 function showPreview(apt, x, y) {
   if (!apt.url) return;
   clearTimeout(previewTimer);
-  previewTimer = setTimeout(async () => {
-    // Position
-    const pw = 220, ph = 120;
+  previewTimer = setTimeout(() => {
+    const pw = 220, ph = 100;
     const vw = window.innerWidth, vh = window.innerHeight;
     let left = x + 14, top = y - ph / 2;
     if (left + pw > vw - 8) left = x - pw - 14;
@@ -336,32 +332,14 @@ function showPreview(apt, x, y) {
     previewEl.style.left = left + 'px';
     previewEl.style.top  = top  + 'px';
 
-    // Show loader
-    previewLoader.style.display = 'flex';
-    previewBody.style.display   = 'none';
+    previewSource.textContent = sourceName(apt.url);
+    previewTitle.textContent  = apt.name || '';
+    previewDesc.textContent   = apt.address || '';
+    previewUrl.textContent    = apt.rent ? '$' + apt.rent.toLocaleString() + '/mo' : '';
+
+    previewBody.style.display = 'block';
     previewEl.classList.add('show');
-
-    // Skip fetch for Facebook — always returns generic logged-out content
-    if (!apt.url.includes('facebook')) {
-      if (!previewCache[apt.url]) {
-        try {
-          const res  = await fetch(`https://api.microlink.io?url=${encodeURIComponent(apt.url)}`);
-          const json = await res.json();
-          previewCache[apt.url] = json.data || {};
-        } catch(e) {
-          previewCache[apt.url] = {};
-        }
-      }
-    }
-
-    const data = previewCache[apt.url] || {};
-    previewLoader.style.display = 'none';
-    previewBody.style.display   = 'block';
-    previewSource.textContent   = sourceName(apt.url);
-    previewTitle.textContent    = data.title || apt.name || '';
-    previewDesc.textContent     = data.description || '';
-    previewUrl.textContent      = apt.address || '';
-  }, 300);
+  }, 200);
 }
 
 function hidePreview() {
