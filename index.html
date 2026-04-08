@@ -24,6 +24,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .chip select option { background: #1a1a1a; }
 .chip.toggle { user-select: none; transition: all 0.15s; }
 .chip.toggle.on { background: rgba(196,169,107,0.15); border-color: var(--accent); color: var(--accent); }
+.chip.toggle.loading { opacity: 0.6; }
 
 #tabs { position: fixed; bottom: 0; left: 0; right: 0; z-index: 1000; height: var(--tab-h); background: var(--surface); border-top: 1px solid var(--border); display: flex; }
 .tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 10px; color: var(--text3); cursor: pointer; -webkit-tap-highlight-color: transparent; transition: color 0.15s; }
@@ -89,10 +90,13 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 
 /* transit stop dots */
 .stop-dot { border-radius: 50%; border: 2px solid #111; box-shadow: 0 1px 4px rgba(0,0,0,0.5); }
-.bus-stop-icon { background: #fff; border: 2px solid #555; border-radius: 3px; font-size: 9px; font-weight: 700; color: #333; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 4px rgba(0,0,0,0.4); }
+.bus-stop-icon { background: #fff; border: 2px solid #555; border-radius: 3px; box-shadow: 0 1px 4px rgba(0,0,0,0.4); }
+
+/* multi-line train station — pie wedges */
+.multi-station { position: relative; border: 2px solid #111; border-radius: 50%; box-shadow: 0 1px 4px rgba(0,0,0,0.6); overflow: hidden; }
 
 /* map legend */
-#map-legend { position: absolute; bottom: 40px; left: 10px; z-index: 400; background: rgba(26,26,26,0.92); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 11px; display: none; flex-direction: column; gap: 5px; backdrop-filter: blur(4px); }
+#map-legend { position: absolute; bottom: 40px; left: 10px; z-index: 400; background: rgba(26,26,26,0.92); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 11px; display: none; flex-direction: column; gap: 5px; backdrop-filter: blur(4px); max-height: 60vh; overflow-y: auto; }
 #map-legend.visible { display: flex; }
 .legend-row { display: flex; align-items: center; gap: 6px; color: var(--text2); }
 .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; border: 1.5px solid rgba(0,0,0,0.3); }
@@ -107,6 +111,9 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 #error-msg h2 { color: var(--red); font-size: 16px; }
 #error-msg p { font-size: 13px; color: var(--text2); line-height: 1.6; max-width: 320px; }
 #error-detail { font-size: 11px; color: var(--text3); font-family: monospace; max-width: 320px; word-break: break-all; }
+
+#toast { position: fixed; bottom: 60px; left: 50%; transform: translateX(-50%); background: rgba(26,26,26,0.95); border: 1px solid var(--border); color: var(--text); padding: 10px 16px; border-radius: 8px; font-size: 12px; z-index: 2000; opacity: 0; transition: opacity 0.25s; pointer-events: none; max-width: 90%; text-align: center; }
+#toast.show { opacity: 1; }
 
 @media (min-width: 768px) {
   #tabs { display: none; }
@@ -126,6 +133,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   <p>Make sure your Google Sheet is published as CSV via File → Share → Publish to web → CSV.</p>
   <div id="error-detail"></div>
 </div>
+<div id="toast"></div>
 
 <div id="header">
   <div id="header-logo">CHI/APTS</div>
@@ -199,15 +207,17 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQueQE5zSZ4CFNzB3Mmzzwg_p3gxLk7CPm10htt_t0F8iS5riuUA0tBonPha7c8voUEjTNr-kP5CZFz/pub?gid=0&single=true&output=csv';
 
 // ── CTA LINE COLORS ───────────────────────────────────────────────────────
+// Keys match the boolean column names from the CTA stops dataset
 const CTA_LINES = {
-  Red:    { color: '#c60c30', route_id: 'Red' },
-  Blue:   { color: '#00a1de', route_id: 'Blue' },
-  Brown:  { color: '#62361b', route_id: 'Brn' },
-  Green:  { color: '#009b3a', route_id: 'G' },
-  Orange: { color: '#f9461c', route_id: 'Org' },
-  Pink:   { color: '#e27ea6', route_id: 'Pink' },
-  Purple: { color: '#522398', route_id: 'P' },
-  Yellow: { color: '#f9e300', route_id: 'Y' },
+  red:  { name: 'Red',    color: '#c60c30' },
+  blue: { name: 'Blue',   color: '#00a1de' },
+  brn:  { name: 'Brown',  color: '#62361b' },
+  g:    { name: 'Green',  color: '#009b3a' },
+  org:  { name: 'Orange', color: '#f9461c' },
+  pnk:  { name: 'Pink',   color: '#e27ea6' },
+  p:    { name: 'Purple', color: '#522398' },
+  pexp: { name: 'Purple', color: '#522398' },
+  y:    { name: 'Yellow', color: '#f9e300' },
 };
 
 const SYNONYMS = {
@@ -252,6 +262,16 @@ function initMap() {
   }).addTo(map);
 }
 
+// ── TOAST ─────────────────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
 // ── APARTMENT MARKERS ─────────────────────────────────────────────────────
 function pinIcon(apt, sel) {
   const sz  = sel ? 34 : 28;
@@ -276,12 +296,25 @@ function placeMarkers() {
 
 // ── MAP OVERLAYS ──────────────────────────────────────────────────────────
 async function toggleOverlay(type) {
+  const chip = document.getElementById('toggle-'+type);
   overlayOn[type] = !overlayOn[type];
-  document.getElementById('toggle-'+type).classList.toggle('on', overlayOn[type]);
+  chip.classList.toggle('on', overlayOn[type]);
 
   if (overlayOn[type] && !overlayLoaded[type]) {
-    await loadOverlay(type);
-    overlayLoaded[type] = true;
+    chip.classList.add('loading');
+    try {
+      await loadOverlay(type);
+      overlayLoaded[type] = true;
+    } catch (e) {
+      console.error('Overlay load failed:', type, e);
+      toast(`Couldn't load ${type} data — try again`);
+      overlayOn[type] = false;
+      chip.classList.remove('on');
+      chip.classList.remove('loading');
+      updateLegend();
+      return;
+    }
+    chip.classList.remove('loading');
   }
 
   overlayLayers[type].forEach(l => {
@@ -289,123 +322,185 @@ async function toggleOverlay(type) {
     else map.removeLayer(l);
   });
 
+  if (overlayOn[type] && overlayLayers[type].length === 0) {
+    toast(`No ${type} results found in this area`);
+  } else if (overlayOn[type]) {
+    toast(`Showing ${overlayLayers[type].length} ${type} location${overlayLayers[type].length===1?'':'s'}`);
+  }
+
   updateLegend();
 }
 
 async function loadOverlay(type) {
   setMsg('Loading '+type+' data…');
-  try {
-    if (type === 'train') await loadTrainLines();
-    if (type === 'bus')   await loadBusStops();
-    if (type === 'gym')   await loadOverpass('gym');
-    if (type === 'grocery') await loadOverpass('grocery');
-  } catch(e) {
-    console.warn('Overlay load failed:', type, e);
-  }
+  if (type === 'train')   await loadTrainLines();
+  if (type === 'bus')     await loadBusStops();
+  if (type === 'gym')     await loadOverpass('gym');
+  if (type === 'grocery') await loadOverpass('grocery');
   setMsg('');
 }
 
-// CTA train lines + stations via Chicago open data
+// ── CTA TRAIN LINES + STATIONS ────────────────────────────────────────────
 async function loadTrainLines() {
-  // Load rail lines GeoJSON
   const linesUrl = 'https://data.cityofchicago.org/resource/vrpq-8xy5.geojson?$limit=5000';
   const stopsUrl = 'https://data.cityofchicago.org/resource/8pix-ypme.json?$limit=2000';
 
   const [linesRes, stopsRes] = await Promise.all([
     fetch(linesUrl), fetch(stopsUrl)
   ]);
+  if (!linesRes.ok || !stopsRes.ok) throw new Error('CTA data fetch failed');
   const linesGeo = await linesRes.json();
   const stops    = await stopsRes.json();
 
   // Draw colored polylines per CTA line
-  const lineColors = {
-    red:'#c60c30', blue:'#00a1de', brn:'#62361b', g:'#009b3a',
-    org:'#f9461c', pink:'#e27ea6', p:'#522398', pexp:'#522398', y:'#f9e300'
-  };
-
   if (linesGeo.features) {
     linesGeo.features.forEach(f => {
-      const lines = f.properties?.LINES?.toLowerCase().split(',').map(s=>s.trim()) || [];
+      const lines = (f.properties?.LINES || '').toLowerCase().split(',').map(s=>s.trim()).filter(Boolean);
       lines.forEach(lineKey => {
-        const color = lineColors[lineKey] || '#888';
+        // Map LINES property names to our color keys
+        const keyMap = { red:'red', blue:'blue', brown:'brn', green:'g', orange:'org', pink:'pnk', purple:'p', 'purple express':'pexp', yellow:'y' };
+        const k = keyMap[lineKey] || lineKey;
+        const color = CTA_LINES[k]?.color || '#888';
         const layer = L.geoJSON(f, {
-          style: { color, weight: 3.5, opacity: 0.85, dashArray: null }
+          style: { color, weight: 3.5, opacity: 0.85 }
         });
         overlayLayers.train.push(layer);
       });
     });
   }
 
-  // Draw station dots — colored by lines served
+  // Group stops by station name to merge multiple platform records
+  const byStation = new Map();
   stops.forEach(s => {
     const lat = parseFloat(s.location?.latitude  || s.lat);
     const lng = parseFloat(s.location?.longitude || s.lon);
     if (!lat || !lng) return;
+    const stationName = s.station_name || s.stationname || s.station_descriptive_name || 'Station';
 
-    // Pick first line color for the dot
-    const lineKeys = ['red','blue','brn','g','org','pink','p','y'];
-    let dotColor = '#888';
-    for (const k of lineKeys) {
-      if (s[k] === '1' || s[k] === true) { dotColor = lineColors[k]; break; }
+    if (!byStation.has(stationName)) {
+      byStation.set(stationName, { lat, lng, name: stationName, lines: new Set() });
+    }
+    const entry = byStation.get(stationName);
+    // Detect which lines serve this station
+    Object.keys(CTA_LINES).forEach(k => {
+      if (s[k] === true || s[k] === 'true' || s[k] === '1' || s[k] === 1) {
+        entry.lines.add(CTA_LINES[k].name);
+      }
+    });
+  });
+
+  // Draw a station marker per station, colored by line(s)
+  byStation.forEach(st => {
+    const lineList = Array.from(st.lines);
+    const size = lineList.length > 1 ? 16 : 12;
+    let html;
+
+    if (lineList.length === 0) {
+      html = `<div class="stop-dot" style="width:10px;height:10px;background:#888;"></div>`;
+    } else if (lineList.length === 1) {
+      const color = Object.values(CTA_LINES).find(c => c.name === lineList[0])?.color || '#888';
+      html = `<div class="stop-dot" style="width:12px;height:12px;background:${color};"></div>`;
+    } else {
+      // Multi-line station: pie wedges using conic-gradient
+      const colors = lineList.map(name => Object.values(CTA_LINES).find(c => c.name === name)?.color || '#888');
+      const step = 100 / colors.length;
+      const stops = colors.map((c, i) => `${c} ${i*step}% ${(i+1)*step}%`).join(', ');
+      html = `<div class="multi-station" style="width:${size}px;height:${size}px;background:conic-gradient(${stops});"></div>`;
     }
 
     const icon = L.divIcon({
-      html: `<div class="stop-dot" style="width:10px;height:10px;background:${dotColor};"></div>`,
-      className:'', iconSize:[10,10], iconAnchor:[5,5]
+      html, className:'', iconSize:[size,size], iconAnchor:[size/2,size/2]
     });
-    const layer = L.marker([lat, lng], { icon, zIndexOffset: -100 })
-      .bindTooltip(s.station_name || s.stationame || '', { direction:'top', offset:[0,-4] });
+
+    const lineBadges = lineList.map(name => {
+      const color = Object.values(CTA_LINES).find(c => c.name === name)?.color || '#888';
+      return `<span style="display:inline-block;background:${color};color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;margin:1px;text-shadow:0 1px 1px rgba(0,0,0,0.5);">${name.toUpperCase()}</span>`;
+    }).join('');
+
+    const tooltipHtml = `<div style="font-weight:700;margin-bottom:3px;">${st.name}</div><div>${lineBadges || '<span style="font-size:10px;color:#aaa;">—</span>'}</div>`;
+
+    const layer = L.marker([st.lat, st.lng], { icon, zIndexOffset: -100 })
+      .bindTooltip(tooltipHtml, { direction:'top', offset:[0,-6], className:'station-tip' });
     overlayLayers.train.push(layer);
   });
 }
 
-// Bus stops via Chicago open data
+// ── BUS STOPS ─────────────────────────────────────────────────────────────
 async function loadBusStops() {
-  const url = 'https://data.cityofchicago.org/resource/hvnx-qtky.json?$limit=3000&$where=public_nam=%27CTA%27';
+  // Try Chicago open data first; fall back to Overpass
+  const url = 'https://data.cityofchicago.org/resource/qs84-j7wh.json?$limit=15000';
   try {
-    const res  = await fetch(url);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP '+res.status);
     const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) throw new Error('empty');
     data.forEach(s => {
-      const lat = parseFloat(s.location?.latitude  || s.lat);
-      const lng = parseFloat(s.location?.longitude || s.lon);
+      // This dataset has 'point_x' / 'point_y' or 'the_geom'
+      let lat, lng;
+      if (s.location?.latitude) {
+        lat = parseFloat(s.location.latitude);
+        lng = parseFloat(s.location.longitude);
+      } else if (s.point_y && s.point_x) {
+        lat = parseFloat(s.point_y);
+        lng = parseFloat(s.point_x);
+      } else if (s.the_geom?.coordinates) {
+        lng = s.the_geom.coordinates[0];
+        lat = s.the_geom.coordinates[1];
+      }
       if (!lat || !lng) return;
       const icon = L.divIcon({
-        html: `<div class="bus-stop-icon" style="width:9px;height:9px;"></div>`,
-        className:'', iconSize:[9,9], iconAnchor:[4,4]
+        html: `<div class="bus-stop-icon" style="width:8px;height:8px;"></div>`,
+        className:'', iconSize:[8,8], iconAnchor:[4,4]
       });
       const layer = L.marker([lat, lng], { icon, zIndexOffset: -200 });
+      const stopName = s.public_nam || s.cta_stop_name || s.street || '';
+      if (stopName) layer.bindTooltip(stopName, { direction:'top', offset:[0,-4] });
       overlayLayers.bus.push(layer);
     });
+    console.log('Loaded', overlayLayers.bus.length, 'bus stops from Chicago data');
+    if (overlayLayers.bus.length === 0) throw new Error('no usable rows');
   } catch(e) {
-    // Fallback: Overpass for bus stops
+    console.warn('Chicago bus dataset failed, falling back to Overpass:', e);
     await loadOverpass('bus');
   }
 }
 
-// Gyms + grocery via OpenStreetMap Overpass
+// ── OVERPASS (gyms, grocery, bus fallback) ────────────────────────────────
+// Use a tighter bbox and split into smaller queries to avoid timeouts
 async function loadOverpass(type) {
-  const bounds = '41.64,-87.85,42.05,-87.52';
+  // Chicago bbox: south,west,north,east
+  const bbox = '41.64,-87.85,42.05,-87.52';
+
   const queries = {
     gym: `
-      node["leisure"~"^(fitness_centre|sports_centre)$"](${bounds});
-      way["leisure"~"^(fitness_centre|sports_centre)$"](${bounds});
-      node["amenity"="gym"](${bounds});
-      node["name"~"Equinox|Planet Fitness|LA Fitness|Orangetheory|CrossFit|YMCA|Life Time|24 Hour Fitness|Gold's Gym|F45|Barry's|SoulCycle|Anytime Fitness",i](${bounds});
+      [out:json][timeout:60];
+      (
+        node["leisure"="fitness_centre"](${bbox});
+        way["leisure"="fitness_centre"](${bbox});
+        node["leisure"="sports_centre"](${bbox});
+        way["leisure"="sports_centre"](${bbox});
+      );
+      out center;
     `,
     grocery: `
-      node["shop"~"^(supermarket|grocery)$"](${bounds});
-      way["shop"~"^(supermarket|grocery)$"](${bounds});
-      node["name"~"Whole Foods|Trader Joe|Jewel|Mariano|Aldi|Kroger|Costco|Target|Walmart|Plum Market|Pete's|Food 4 Less",i](${bounds});
+      [out:json][timeout:60];
+      (
+        node["shop"="supermarket"](${bbox});
+        way["shop"="supermarket"](${bbox});
+        node["shop"="grocery"](${bbox});
+        way["shop"="grocery"](${bbox});
+        node["shop"="convenience"](${bbox});
+      );
+      out center;
     `,
-    bus: `node["highway"="bus_stop"](${bounds});`
+    bus: `
+      [out:json][timeout:60];
+      (
+        node["highway"="bus_stop"](${bbox});
+      );
+      out;
+    `
   };
-  const q = `[out:json][timeout:30];(${queries[type]});out center 1000;`;
-
-  const res = await fetch('https://overpass-api.de/api/interpreter', {
-    method: 'POST', body: 'data=' + encodeURIComponent(q)
-  });
-  const data = await res.json();
-  console.log(type, 'overlay: got', data.elements?.length, 'results');
 
   const cfg = {
     gym:     { emoji: '💪', bg: '#2a3d2f', text: '#7ec8a0', border: '#7ec8a0' },
@@ -413,30 +508,61 @@ async function loadOverpass(type) {
     bus:     { emoji: '',   bg: '#fff',    text: '#333',    border: '#555' },
   }[type];
 
-  // Dedupe by name to avoid duplicates from node+way queries
+  // Try multiple Overpass endpoints
+  const endpoints = [
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+    'https://overpass.private.coffee/api/interpreter'
+  ];
+
+  let data = null, lastErr = null;
+  for (const ep of endpoints) {
+    try {
+      const res = await fetch(ep, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'data=' + encodeURIComponent(queries[type])
+      });
+      if (!res.ok) { lastErr = new Error(`${ep}: HTTP ${res.status}`); continue; }
+      data = await res.json();
+      break;
+    } catch (e) {
+      lastErr = e;
+      console.warn('Overpass endpoint failed:', ep, e.message);
+    }
+  }
+  if (!data) throw lastErr || new Error('All Overpass endpoints failed');
+
+  console.log(type, 'overlay: got', data.elements?.length || 0, 'results');
+
+  // Dedupe
   const seen = new Set();
   (data.elements || []).forEach(el => {
     const lat = el.lat || el.center?.lat;
     const lon = el.lon || el.center?.lon;
     if (!lat || !lon) return;
     const name = el.tags?.name || '';
-    const key  = name || `${lat.toFixed(4)},${lon.toFixed(4)}`;
+    const key  = name ? name + Math.round(lat*100) : `${lat.toFixed(4)},${lon.toFixed(4)}`;
     if (seen.has(key)) return;
     seen.add(key);
 
-    const label = name.length > 20 ? name.slice(0, 20) + '…' : name;
+    let icon;
+    if (type === 'bus') {
+      icon = L.divIcon({
+        html: `<div class="bus-stop-icon" style="width:8px;height:8px;"></div>`,
+        className:'', iconSize:[8,8], iconAnchor:[4,4]
+      });
+    } else {
+      const label = name ? (name.length > 18 ? name.slice(0, 18) + '…' : name) : cfg.emoji;
+      icon = L.divIcon({
+        html: `<div style="background:${cfg.bg};border:1.5px solid ${cfg.border};border-radius:5px;padding:2px 6px;font-size:10px;font-weight:700;color:${cfg.text};white-space:nowrap;box-shadow:0 1px 5px rgba(0,0,0,0.5);line-height:1.4;">${cfg.emoji} ${label}</div>`,
+        className: '', iconAnchor: [0, 0]
+      });
+    }
 
-    const icon = L.divIcon({
-      html: type === 'bus'
-        ? `<div class="bus-stop-icon" style="width:9px;height:9px;"></div>`
-        : `<div style="background:${cfg.bg};border:1.5px solid ${cfg.border};border-radius:5px;padding:2px 6px;font-size:10px;font-weight:700;color:${cfg.text};white-space:nowrap;box-shadow:0 1px 5px rgba(0,0,0,0.5);line-height:1.4;">${cfg.emoji} ${label}</div>`,
-      className: '',
-      iconAnchor: type === 'bus' ? [4, 4] : [0, 0]
-    });
-
-    const layer = L.marker([lat, lon], { icon, zIndexOffset: -300 });
+    const layer = L.marker([lat, lon], { icon, zIndexOffset: type === 'bus' ? -200 : -300 });
     if (name) layer.bindTooltip(name, { direction: 'top', offset: [0, -4] });
-    overlayLayers[type === 'bus' ? 'bus' : type].push(layer);
+    overlayLayers[type].push(layer);
   });
 }
 
@@ -446,13 +572,17 @@ function updateLegend() {
   const rows = [];
 
   if (overlayOn.train) {
-    Object.entries(CTA_LINES).forEach(([name, cfg]) => {
-      rows.push(`<div class="legend-row"><div class="legend-line" style="background:${cfg.color};"></div>${name} Line</div>`);
+    // Unique line names only
+    const seen = new Set();
+    Object.values(CTA_LINES).forEach(cfg => {
+      if (seen.has(cfg.name)) return;
+      seen.add(cfg.name);
+      rows.push(`<div class="legend-row"><div class="legend-line" style="background:${cfg.color};"></div>${cfg.name} Line</div>`);
     });
-    rows.push(`<div class="legend-row"><div class="legend-dot" style="background:#888;"></div>Station</div>`);
+    rows.push(`<div class="legend-row"><div class="legend-dot" style="background:conic-gradient(#c60c30 0% 50%, #00a1de 50% 100%);"></div>Multi-line station</div>`);
   }
   if (overlayOn.bus) {
-    rows.push(`<div class="legend-row"><div class="bus-stop-icon legend-dot" style="width:10px;height:10px;border-radius:2px;"></div>Bus stop</div>`);
+    rows.push(`<div class="legend-row"><div class="bus-stop-icon" style="width:10px;height:10px;"></div>Bus stop</div>`);
   }
   if (overlayOn.gym) {
     rows.push(`<div class="legend-row"><span style="font-size:12px;">💪</span> Gym / Fitness</div>`);
@@ -500,18 +630,14 @@ async function geocode(apt) {
   if (!apt.address) { console.warn('No address for:', apt.name); return; }
   try {
     const addr = /chicago/i.test(apt.address) ? apt.address : apt.address + ', Chicago, IL';
-    console.log('Geocoding:', addr);
     const res  = await fetch(
       'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(addr),
-      { headers: { 'Accept-Language': 'en', 'User-Agent': 'ChiApts/1.0' } }
+      { headers: { 'Accept-Language': 'en' } }
     );
     const data = await res.json();
     if (data?.[0]) {
       apt.lat = parseFloat(data[0].lat);
       apt.lng = parseFloat(data[0].lon);
-      console.log('Geocoded', apt.name, '->', apt.lat, apt.lng);
-    } else {
-      console.warn('No geocode result for:', apt.address, '— apartment will still appear in list but not on map');
     }
   } catch(e) {
     console.warn('Geocode error for:', apt.address, e);
