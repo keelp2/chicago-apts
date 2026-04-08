@@ -15,31 +15,27 @@
 }
 html, body { height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; overflow: hidden; }
 
-#header { position: fixed; top: 0; left: 0; right: 0; z-index: 1000; height: var(--header-h); background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; padding: 0 12px; }
-#header-logo { font-size: 13px; font-weight: 700; letter-spacing: 0.05em; color: var(--accent); white-space: nowrap; }
-#filter-scroll { display: flex; align-items: center; gap: 6px; overflow-x: auto; flex: 1; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-#filter-scroll::-webkit-scrollbar { display: none; }
+#header { position: fixed; top: 0; left: 0; right: 0; z-index: 1000; background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 12px; display: flex; align-items: center; height: var(--header-h); }
+#header-logo { font-size: 13px; font-weight: 700; letter-spacing: 0.05em; color: var(--accent); white-space: nowrap; margin-right: 8px; flex-shrink: 0; }
+#filter-all { display: flex; align-items: center; gap: 6px; overflow-x: auto; flex: 1; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+#filter-all::-webkit-scrollbar { display: none; }
+#filter-apt { display: contents; } /* flat on mobile — all chips in one scroll row */
+#filter-map { display: none; }     /* desktop only — mobile has toggles inline in filter-apt */
 .chip { display: flex; align-items: center; gap: 5px; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 5px 10px; font-size: 12px; color: var(--text2); white-space: nowrap; cursor: pointer; flex-shrink: 0; -webkit-tap-highlight-color: transparent; }
 .chip select { background: transparent; border: none; color: var(--text2); font-size: 12px; outline: none; cursor: pointer; -webkit-appearance: none; padding-right: 2px; }
 .chip select option { background: #1a1a1a; }
 .chip.toggle { user-select: none; transition: all 0.15s; }
 .chip.toggle.on { background: rgba(196,169,107,0.15); border-color: var(--accent); color: var(--accent); }
 .chip.toggle.loading { opacity: 0.6; }
-
-/* mobile: apt filters scroll horizontally, map toggles hidden in header (already on map) */
-.filter-scroll-mobile { display: flex; align-items: center; gap: 6px; overflow-x: auto; flex: 1; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-.filter-scroll-mobile::-webkit-scrollbar { display: none; }
-#filter-map { display: none; } /* hidden on mobile — toggles still work via map chips if we add them back, or shown on desktop */
+.desktop-hide { display: flex; } /* visible on mobile */
 
 @media (min-width: 768px) {
-  :root { --header-h: 90px; }
-  #header { flex-direction: column; align-items: stretch; justify-content: center; gap: 5px; padding: 8px 12px; }
-  #header-top { display: flex; align-items: center; gap: 8px; }
-  #header-logo { flex-shrink: 0; }
-  #filter-apt { display: flex; flex-wrap: wrap; gap: 5px; flex: 1; overflow: visible; }
-  #filter-map { display: flex; flex-wrap: wrap; gap: 5px; padding-top: 4px; border-top: 1px solid var(--border); }
-  #map-panel, #list-panel { top: var(--header-h); }
-  #bottom-sheet { top: auto; }
+  #header { height: auto; flex-direction: column; align-items: stretch; padding: 8px 12px; gap: 0; }
+  #header-logo { margin-bottom: 5px; }
+  #filter-all { overflow: visible; flex-direction: column; align-items: stretch; gap: 5px; }
+  #filter-apt { display: flex; flex-wrap: wrap; gap: 5px; }
+  #filter-map { display: flex; flex-wrap: wrap; gap: 5px; padding-top: 5px; border-top: 1px solid var(--border); margin-top: 2px; }
+  .desktop-hide { display: none !important; }
 }
 
 #tabs { position: fixed; bottom: 0; left: 0; right: 0; z-index: 1000; height: var(--tab-h); background: var(--surface); border-top: 1px solid var(--border); display: flex; }
@@ -173,9 +169,106 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 </div>
 
 <div id="header">
-  <div id="header-top">
-    <div id="header-logo">CHI/APTS</div>
-    <div id="filter-apt" class="filter-scroll-mobile">
+  <div id="header-logo">CHI/APTS</div>
+  <div id="filter-all">
+    <div id="filter-apt">
+      <div class="chip"><span>💰</span>
+        <select id="f-rent">
+          <option value="">Any rent</option>
+          <option value="1500">≤ $1,500</option>
+          <option value="2000">≤ $2,000</option>
+          <option value="2500">≤ $2,500</option>
+          <option value="3000">≤ $3,000</option>
+          <option value="3500">≤ $3,500</option>
+          <option value="4000">≤ $4,000</option>
+        </select>
+      </div>
+      <div class="chip"><span>🛏</span>
+        <select id="f-beds">
+          <option value="">Any beds</option>
+          <option value="0">Studio</option>
+          <option value="1">1 bed</option>
+          <option value="2">2 beds</option>
+          <option value="3">3 beds</option>
+        </select>
+      </div>
+      <div class="chip">
+        <select id="f-avail">
+          <option value="">Any avail</option>
+          <option value="yes">Available</option>
+          <option value="no">Unavailable</option>
+        </select>
+      </div>
+      <div class="chip">
+        <select id="f-wd">
+          <option value="">W/D: any</option>
+          <option value="yes">W/D in-unit</option>
+        </select>
+      </div>
+      <div class="chip">
+        <select id="f-status">
+          <option value="">Any stage</option>
+          <option value="untouched">Untouched</option>
+          <option value="touring">Touring</option>
+          <option value="considering">Considering</option>
+          <option value="yes">Yes</option>
+          <option value="no">No</option>
+        </select>
+      </div>
+      <div class="chip"><span>🛁</span>
+        <select id="f-baths">
+          <option value="">Any baths</option>
+          <option value="1">≥ 1</option>
+          <option value="1.5">≥ 1.5</option>
+          <option value="2">≥ 2</option>
+        </select>
+      </div>
+      <div class="chip"><span>🔊</span>
+        <select id="f-noise">
+          <option value="">Any noise</option>
+          <option value="Low">Low</option>
+          <option value="Medium">≤ Medium</option>
+        </select>
+      </div>
+      <div class="chip">
+        <select id="f-topfloor">
+          <option value="">Top floor: any</option>
+          <option value="yes">Top floor only</option>
+        </select>
+      </div>
+      <div class="chip"><span>⭐</span>
+        <select id="f-rating">
+          <option value="">Any rating</option>
+          <option value="3">≥ 3 stars</option>
+          <option value="4">≥ 4 stars</option>
+          <option value="5">5 stars only</option>
+        </select>
+      </div>
+      <div class="chip"><span>📐</span>
+        <select id="f-sqft">
+          <option value="">Any sqft</option>
+          <option value="700">≥ 700</option>
+          <option value="900">≥ 900</option>
+          <option value="1100">≥ 1,100</option>
+          <option value="1300">≥ 1,300</option>
+          <option value="1500">≥ 1,500</option>
+          <option value="1800">≥ 1,800</option>
+        </select>
+      </div>
+      <!-- map toggles inline on mobile -->
+      <div class="chip toggle desktop-hide" id="toggle-train-m" onclick="toggleOverlay('train')">🚇 L Train</div>
+      <div class="chip toggle desktop-hide" id="toggle-bus-m"   onclick="toggleOverlay('bus')">🚌 Bus</div>
+      <div class="chip toggle desktop-hide" id="toggle-gym-m"   onclick="toggleOverlay('gym')">💪 Gyms</div>
+      <div class="chip toggle desktop-hide" id="toggle-grocery-m" onclick="toggleOverlay('grocery')">🛒 Grocery</div>
+    </div>
+    <div id="filter-map">
+      <div class="chip toggle" id="toggle-train" onclick="toggleOverlay('train')">🚇 L Train</div>
+      <div class="chip toggle" id="toggle-bus"   onclick="toggleOverlay('bus')">🚌 Bus</div>
+      <div class="chip toggle" id="toggle-gym"   onclick="toggleOverlay('gym')">💪 Gyms</div>
+      <div class="chip toggle" id="toggle-grocery" onclick="toggleOverlay('grocery')">🛒 Grocery</div>
+    </div>
+  </div>
+</div>
       <div class="chip"><span>💰</span>
         <select id="f-rent">
           <option value="">Any rent</option>
@@ -260,12 +353,12 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
         </select>
       </div>
     </div>
-  </div>
-  <div id="filter-map">
-    <div class="chip toggle" id="toggle-train" onclick="toggleOverlay('train')">🚇 L Train</div>
-    <div class="chip toggle" id="toggle-bus"   onclick="toggleOverlay('bus')">🚌 Bus</div>
-    <div class="chip toggle" id="toggle-gym"   onclick="toggleOverlay('gym')">💪 Gyms</div>
-    <div class="chip toggle" id="toggle-grocery" onclick="toggleOverlay('grocery')">🛒 Grocery</div>
+    <div id="filter-map">
+      <div class="chip toggle" id="toggle-train" onclick="toggleOverlay('train')">🚇 L Train</div>
+      <div class="chip toggle" id="toggle-bus"   onclick="toggleOverlay('bus')">🚌 Bus</div>
+      <div class="chip toggle" id="toggle-gym"   onclick="toggleOverlay('gym')">💪 Gyms</div>
+      <div class="chip toggle" id="toggle-grocery" onclick="toggleOverlay('grocery')">🛒 Grocery</div>
+    </div>
   </div>
 </div>
 
@@ -347,9 +440,17 @@ let overlayLoaded = { train: false, bus: false, gym: false, grocery: false };
 
 // ── INIT ──────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
+  adjustPanelOffset();
+  new ResizeObserver(adjustPanelOffset).observe(document.getElementById('header'));
   initMap();
   await fetchData();
 });
+
+function adjustPanelOffset() {
+  const h = document.getElementById('header').offsetHeight;
+  document.getElementById('map-panel').style.top  = h + 'px';
+  document.getElementById('list-panel').style.top = h + 'px';
+}
 
 function initMap() {
   map = L.map('map', { center: [41.88, -87.65], zoom: 12, zoomControl: false });
@@ -463,12 +564,12 @@ function placeMarkers() {
 
 // ── MAP OVERLAYS ──────────────────────────────────────────────────────────
 async function toggleOverlay(type) {
-  const chip = document.getElementById('toggle-'+type);
+  const chips = [document.getElementById('toggle-'+type), document.getElementById('toggle-'+type+'-m')].filter(Boolean);
   overlayOn[type] = !overlayOn[type];
-  chip.classList.toggle('on', overlayOn[type]);
+  chips.forEach(c => c.classList.toggle('on', overlayOn[type]));
 
   if (overlayOn[type] && !overlayLoaded[type]) {
-    chip.classList.add('loading');
+    chips.forEach(c => c.classList.add('loading'));
     try {
       await loadOverlay(type);
       overlayLoaded[type] = true;
@@ -476,12 +577,11 @@ async function toggleOverlay(type) {
       console.error('Overlay load failed:', type, e);
       toast(`Couldn't load ${type} data — try again`);
       overlayOn[type] = false;
-      chip.classList.remove('on');
-      chip.classList.remove('loading');
+      chips.forEach(c => { c.classList.remove('on'); c.classList.remove('loading'); });
       updateLegend();
       return;
     }
-    chip.classList.remove('loading');
+    chips.forEach(c => c.classList.remove('loading'));
   }
 
   overlayLayers[type].forEach(l => {
