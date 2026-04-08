@@ -26,6 +26,22 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .chip.toggle.on { background: rgba(196,169,107,0.15); border-color: var(--accent); color: var(--accent); }
 .chip.toggle.loading { opacity: 0.6; }
 
+/* mobile: apt filters scroll horizontally, map toggles hidden in header (already on map) */
+.filter-scroll-mobile { display: flex; align-items: center; gap: 6px; overflow-x: auto; flex: 1; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.filter-scroll-mobile::-webkit-scrollbar { display: none; }
+#filter-map { display: none; } /* hidden on mobile — toggles still work via map chips if we add them back, or shown on desktop */
+
+@media (min-width: 768px) {
+  :root { --header-h: 90px; }
+  #header { flex-direction: column; align-items: stretch; justify-content: center; gap: 5px; padding: 8px 12px; }
+  #header-top { display: flex; align-items: center; gap: 8px; }
+  #header-logo { flex-shrink: 0; }
+  #filter-apt { display: flex; flex-wrap: wrap; gap: 5px; flex: 1; overflow: visible; }
+  #filter-map { display: flex; flex-wrap: wrap; gap: 5px; padding-top: 4px; border-top: 1px solid var(--border); }
+  #map-panel, #list-panel { top: var(--header-h); }
+  #bottom-sheet { top: auto; }
+}
+
 #tabs { position: fixed; bottom: 0; left: 0; right: 0; z-index: 1000; height: var(--tab-h); background: var(--surface); border-top: 1px solid var(--border); display: flex; }
 .tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 10px; color: var(--text3); cursor: pointer; -webkit-tap-highlight-color: transparent; transition: color 0.15s; }
 .tab.active { color: var(--accent); }
@@ -157,93 +173,95 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 </div>
 
 <div id="header">
-  <div id="header-logo">CHI/APTS</div>
-  <div id="filter-scroll">
-    <div class="chip"><span>💰</span>
-      <select id="f-rent">
-        <option value="">Any rent</option>
-        <option value="1500">≤ $1,500</option>
-        <option value="2000">≤ $2,000</option>
-        <option value="2500">≤ $2,500</option>
-        <option value="3000">≤ $3,000</option>
-        <option value="3500">≤ $3,500</option>
-        <option value="4000">≤ $4,000</option>
-      </select>
+  <div id="header-top">
+    <div id="header-logo">CHI/APTS</div>
+    <div id="filter-apt" class="filter-scroll-mobile">
+      <div class="chip"><span>💰</span>
+        <select id="f-rent">
+          <option value="">Any rent</option>
+          <option value="1500">≤ $1,500</option>
+          <option value="2000">≤ $2,000</option>
+          <option value="2500">≤ $2,500</option>
+          <option value="3000">≤ $3,000</option>
+          <option value="3500">≤ $3,500</option>
+          <option value="4000">≤ $4,000</option>
+        </select>
+      </div>
+      <div class="chip"><span>🛏</span>
+        <select id="f-beds">
+          <option value="">Any beds</option>
+          <option value="0">Studio</option>
+          <option value="1">1 bed</option>
+          <option value="2">2 beds</option>
+          <option value="3">3 beds</option>
+        </select>
+      </div>
+      <div class="chip">
+        <select id="f-avail">
+          <option value="">Any avail</option>
+          <option value="yes">Available</option>
+          <option value="no">Unavailable</option>
+        </select>
+      </div>
+      <div class="chip">
+        <select id="f-wd">
+          <option value="">W/D: any</option>
+          <option value="yes">W/D in-unit</option>
+        </select>
+      </div>
+      <div class="chip">
+        <select id="f-status">
+          <option value="">Any stage</option>
+          <option value="untouched">Untouched</option>
+          <option value="touring">Touring</option>
+          <option value="considering">Considering</option>
+          <option value="yes">Yes</option>
+          <option value="no">No</option>
+        </select>
+      </div>
+      <div class="chip"><span>🛁</span>
+        <select id="f-baths">
+          <option value="">Any baths</option>
+          <option value="1">≥ 1</option>
+          <option value="1.5">≥ 1.5</option>
+          <option value="2">≥ 2</option>
+        </select>
+      </div>
+      <div class="chip"><span>🔊</span>
+        <select id="f-noise">
+          <option value="">Any noise</option>
+          <option value="Low">Low</option>
+          <option value="Medium">≤ Medium</option>
+        </select>
+      </div>
+      <div class="chip">
+        <select id="f-topfloor">
+          <option value="">Top floor: any</option>
+          <option value="yes">Top floor only</option>
+        </select>
+      </div>
+      <div class="chip"><span>⭐</span>
+        <select id="f-rating">
+          <option value="">Any rating</option>
+          <option value="3">≥ 3 stars</option>
+          <option value="4">≥ 4 stars</option>
+          <option value="5">5 stars only</option>
+        </select>
+      </div>
+      <div class="chip"><span>📐</span>
+        <select id="f-sqft">
+          <option value="">Any sqft</option>
+          <option value="700">≥ 700</option>
+          <option value="900">≥ 900</option>
+          <option value="1100">≥ 1,100</option>
+          <option value="1300">≥ 1,300</option>
+          <option value="1500">≥ 1,500</option>
+          <option value="1800">≥ 1,800</option>
+        </select>
+      </div>
     </div>
-    <div class="chip"><span>🛏</span>
-      <select id="f-beds">
-        <option value="">Any beds</option>
-        <option value="0">Studio</option>
-        <option value="1">1 bed</option>
-        <option value="2">2 beds</option>
-        <option value="3">3 beds</option>
-      </select>
-    </div>
-    <div class="chip">
-      <select id="f-avail">
-        <option value="">Any status</option>
-        <option value="yes">Available</option>
-        <option value="no">Unavailable</option>
-      </select>
-    </div>
-    <div class="chip">
-      <select id="f-wd">
-        <option value="">W/D: any</option>
-        <option value="yes">W/D in-unit</option>
-      </select>
-    </div>
-    <div class="chip">
-      <select id="f-status">
-        <option value="">Any stage</option>
-        <option value="untouched">Untouched</option>
-        <option value="touring">Touring</option>
-        <option value="considering">Considering</option>
-        <option value="yes">Yes</option>
-        <option value="no">No</option>
-      </select>
-    </div>
-    <div class="chip"><span>🛁</span>
-      <select id="f-baths">
-        <option value="">Any baths</option>
-        <option value="1">≥ 1</option>
-        <option value="1.5">≥ 1.5</option>
-        <option value="2">≥ 2</option>
-      </select>
-    </div>
-    <div class="chip"><span>🔊</span>
-      <select id="f-noise">
-        <option value="">Any noise</option>
-        <option value="Low">Low</option>
-        <option value="Medium">≤ Medium</option>
-        <option value="High">Any (incl. High)</option>
-      </select>
-    </div>
-    <div class="chip">
-      <select id="f-topfloor">
-        <option value="">Top floor: any</option>
-        <option value="yes">Top floor only</option>
-      </select>
-    </div>
-    <div class="chip"><span>⭐</span>
-      <select id="f-rating">
-        <option value="">Any rating</option>
-        <option value="3">≥ 3 stars</option>
-        <option value="4">≥ 4 stars</option>
-        <option value="5">5 stars only</option>
-      </select>
-    </div>
-    <div class="chip"><span>📐</span>
-      <select id="f-sqft">
-        <option value="">Any sqft</option>
-        <option value="700">≥ 700</option>
-        <option value="900">≥ 900</option>
-        <option value="1100">≥ 1,100</option>
-        <option value="1300">≥ 1,300</option>
-        <option value="1500">≥ 1,500</option>
-        <option value="1800">≥ 1,800</option>
-      </select>
-    </div>
-    <!-- Map overlay toggles -->
+  </div>
+  <div id="filter-map">
     <div class="chip toggle" id="toggle-train" onclick="toggleOverlay('train')">🚇 L Train</div>
     <div class="chip toggle" id="toggle-bus"   onclick="toggleOverlay('bus')">🚌 Bus</div>
     <div class="chip toggle" id="toggle-gym"   onclick="toggleOverlay('gym')">💪 Gyms</div>
@@ -373,6 +391,8 @@ function sourceName(url) {
   } catch { return ''; }
 }
 
+const isTouchDevice = () => window.matchMedia('(hover: none)').matches;
+
 function showPreview(apt, x, y) {
   if (!apt.url) return;
   clearTimeout(previewTimer);
@@ -401,6 +421,9 @@ function hidePreview() {
   previewEl.classList.remove('show');
 }
 
+// Dismiss preview when clicking anywhere on the map
+document.getElementById('map').addEventListener('click', hidePreview);
+
 
 function pinColor(apt) {
   if (yn(apt.available) === false) return { bg: '#7a3a35', border: '#a04040' }; // red — unavailable trumps all
@@ -427,11 +450,14 @@ function placeMarkers() {
   markers = {};
   APTS.forEach((apt, i) => {
     if (!apt.lat || !apt.lng) return;
-    markers[i] = L.marker([apt.lat, apt.lng], { icon: pinIcon(apt, false), zIndexOffset: 500 })
+    const m = L.marker([apt.lat, apt.lng], { icon: pinIcon(apt, false), zIndexOffset: 500 })
       .addTo(map)
-      .on('click', () => selectApt(i))
-      .on('mouseover', (e) => showPreview(apt, e.originalEvent.clientX, e.originalEvent.clientY))
-      .on('mouseout',  ()  => hidePreview());
+      .on('click', () => selectApt(i));
+    if (!isTouchDevice()) {
+      m.on('mouseover', (e) => showPreview(apt, e.originalEvent.clientX, e.originalEvent.clientY))
+       .on('mouseout',  ()  => hidePreview());
+    }
+    markers[i] = m;
   });
 }
 
