@@ -260,6 +260,22 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
       <div class="chip toggle desktop-hide" id="toggle-bus-m"   onclick="toggleOverlay('bus')">🚌 Bus</div>
       <div class="chip toggle desktop-hide" id="toggle-gym-m"   onclick="toggleOverlay('gym')">💪 Gyms</div>
       <div class="chip toggle desktop-hide" id="toggle-grocery-m" onclick="toggleOverlay('grocery')">🛒 Grocery</div>
+      <div class="chip"><span>👩</span>
+        <select id="f-cara">
+          <option value="">Cara: any</option>
+          <option value="yes">Yes</option>
+          <option value="maybe">Maybe</option>
+          <option value="no">No</option>
+        </select>
+      </div>
+      <div class="chip"><span>👨</span>
+        <select id="f-peter">
+          <option value="">Peter: any</option>
+          <option value="yes">Yes</option>
+          <option value="maybe">Maybe</option>
+          <option value="no">No</option>
+        </select>
+      </div>
     </div>
     <div id="filter-map">
       <div class="chip toggle" id="toggle-train" onclick="toggleOverlay('train')">🚇 L Train</div>
@@ -338,6 +354,8 @@ const SYNONYMS = {
   notes:       ['notes','note','other','comments'],
   status:      ['status'],
   rating:      ['rating','myrating'],
+  cara:        ['cara'],
+  peter:       ['peter'],
 };
 
 let APTS = [], visibleIdxs = [], selectedIdx = null, sortAsc = true;
@@ -919,6 +937,8 @@ function parseCSV(text) {
       notes:       get(v,'notes'),
       status:      get(v,'status'),
       rating:      get(v,'rating'),
+      cara:        get(v,'cara'),
+      peter:       get(v,'peter'),
     };
   }).filter(Boolean);
 }
@@ -965,6 +985,8 @@ function applyFilters() {
   const topFloor   = document.getElementById('f-topfloor').value;
   const minRating  = parseInt(document.getElementById('f-rating').value)  || 0;
   const minSqft    = parseInt(document.getElementById('f-sqft').value)    || 0;
+  const filterCara  = document.getElementById('f-cara').value.toLowerCase();
+  const filterPeter = document.getElementById('f-peter').value.toLowerCase();
 
   visibleIdxs = APTS.map((_,i)=>i).filter(i => {
     const a = APTS[i];
@@ -978,6 +1000,8 @@ function applyFilters() {
     if (minRating && (parseInt(a.rating) || 0) < minRating) return false;
     if (minSqft   && (a.sqft   || 0) < minSqft)   return false;
     if (topFloor === 'yes' && yn(a.topFloor) !== true) return false;
+    if (filterCara  && (a.cara ||'').toLowerCase() !== filterCara)  return false;
+    if (filterPeter && (a.peter||'').toLowerCase() !== filterPeter) return false;
     if (maxNoise) {
       const rank = NOISE_RANK[(a.noise||'').toLowerCase()];
       const max  = NOISE_RANK[maxNoise.toLowerCase()];
@@ -996,7 +1020,7 @@ function applyFilters() {
   renderList();
 }
 
-['f-rent','f-beds','f-avail','f-wd','f-status','f-baths','f-noise','f-topfloor','f-rating','f-sqft'].forEach(id =>
+['f-rent','f-beds','f-avail','f-wd','f-status','f-baths','f-noise','f-topfloor','f-rating','f-sqft','f-cara','f-peter'].forEach(id =>
   document.getElementById(id).addEventListener('change', applyFilters)
 );
 document.getElementById('list-sort').addEventListener('click', ()=>{
@@ -1027,6 +1051,9 @@ function renderList() {
     const outdoorTag = a.outdoor && yn(a.outdoor)!==false ? `<span class="tag green">🌿 ${a.outdoor}</span>` : '';
     const statusTag  = s && s!=='untouched' ? `<span class="tag ${statusColor}">${statusEmoji} ${a.status}</span>` : '';
     const ratingTag  = a.rating ? `<span class="tag gold">${'★'.repeat(Math.min(parseInt(a.rating)||0,5))}</span>` : '';
+    const voteColor  = v => v==='yes'?'green':v==='no'?'red':v==='maybe'?'gold':'';
+    const caraTag    = a.cara  ? `<span class="tag ${voteColor(a.cara.toLowerCase())}">👩 ${a.cara}</span>`  : '';
+    const peterTag   = a.peter ? `<span class="tag ${voteColor(a.peter.toLowerCase())}">👨 ${a.peter}</span>` : '';
 
     card.innerHTML = `
       <div class="card-top">
@@ -1038,7 +1065,7 @@ function renderList() {
         ${availTag}${statusTag}
         ${a.beds!=null?`<span class="tag gold">${a.beds===0?'Studio':a.beds+' bd'}${a.baths?' / '+a.baths+' ba':''}</span>`:''}
         ${a.sqft?`<span class="tag">${a.sqft.toLocaleString()} sqft</span>`:''}
-        ${wdTag}${topTag}${outdoorTag}${ratingTag}
+        ${wdTag}${topTag}${outdoorTag}${ratingTag}${caraTag}${peterTag}
       </div>
       <div class="card-footer">
         ${a.tourDate?`<span class="tour-date">📅 ${fmtDate(a.tourDate)}</span>`:''}
@@ -1094,6 +1121,13 @@ function renderSheet(a) {
       ${dg('Outdoor', a.outdoor)}
       ${dg('Noise',   a.noise)}
     </div>
+
+    ${(a.cara||a.peter)?`
+    <div class="section-title">Votes</div>
+    <div class="detail-grid two">
+      ${a.cara  ? dg('Cara',  a.cara,  a.cara.toLowerCase()==='yes'?'green':a.cara.toLowerCase()==='no'?'red':'gold') : ''}
+      ${a.peter ? dg('Peter', a.peter, a.peter.toLowerCase()==='yes'?'green':a.peter.toLowerCase()==='no'?'red':'gold') : ''}
+    </div>`:''}
 
     ${a.tourDate?`<div class="section-title">Tour</div>
     <div style="margin-bottom:14px;font-size:14px;color:var(--yellow);">📅 ${a.tourDate}</div>`:''}
