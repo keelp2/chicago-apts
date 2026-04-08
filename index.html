@@ -609,43 +609,50 @@ async function loadOverlay(type) {
 
 // ── CTA TRAIN LINES + STATIONS ────────────────────────────────────────────
 async function loadTrainLines() {
-  // FIX: updated dataset ID from vrpq-8xy5 (retired) → xbyr-jnvx
+  // ── Try static pre-built files first (instant) ────────────────────────
+  try {
+    const [linesRes, stopsRes] = await Promise.all([
+      fetch('data/train_lines.json'),
+      fetch('data/train_stops.json')
+    ]);
+    if (linesRes.ok && stopsRes.ok) {
+      const linesGeo = await linesRes.json();
+      const stops    = await stopsRes.json();
+      console.log('train loaded from static files');
+      buildTrainMarkers(linesGeo, stops);
+      return;
+    }
+  } catch(e) {
+    console.warn('train static files not found, falling back to live fetch');
+  }
+
+  // ── Fallback: live fetch from Chicago Data Portal ─────────────────────
   const linesUrl = 'https://data.cityofchicago.org/resource/xbyr-jnvx.geojson?$limit=5000';
   const stopsUrl = 'https://data.cityofchicago.org/resource/8pix-ypme.json?$limit=2000';
-
-  const [linesRes, stopsRes] = await Promise.all([
-    fetch(linesUrl), fetch(stopsUrl)
-  ]);
+  const [linesRes, stopsRes] = await Promise.all([fetch(linesUrl), fetch(stopsUrl)]);
   if (!linesRes.ok || !stopsRes.ok) throw new Error('CTA data fetch failed');
   const linesGeo = await linesRes.json();
   const stops    = await stopsRes.json();
+  buildTrainMarkers(linesGeo, stops);
+}
 
-  // Draw colored polylines per CTA line
+function buildTrainMarkers(linesGeo, stops) {
   if (linesGeo.features) {
     linesGeo.features.forEach(f => {
-      // The new dataset may use 'LINES', 'lines', or 'lines_served' — check all
       const rawLines = f.properties?.LINES || f.properties?.lines || f.properties?.lines_served
                     || f.properties?.LINE  || f.properties?.line  || '';
       const lineTokens = rawLines.toString().toLowerCase().split(/[,/\s]+/).map(s=>s.trim()).filter(Boolean);
-
-      // If no LINES property, try to infer from a single color field
       const colorField = f.properties?.COLOR || f.properties?.color || f.properties?.LONGNAME || '';
-      if (lineTokens.length === 0 && colorField) {
+      if (lineTokens.length === 0 && colorField)
         lineTokens.push(colorField.toLowerCase().replace(/\s+line$/,'').trim());
-      }
-
       if (lineTokens.length === 0) {
-        // Last resort: draw in gray
-        const layer = L.geoJSON(f, { style: { color: '#888', weight: 3, opacity: 0.6 } });
-        overlayLayers.train.push(layer);
+        overlayLayers.train.push(L.geoJSON(f, { style: { color: '#888', weight: 3, opacity: 0.6 } }));
         return;
       }
-
       lineTokens.forEach(token => {
         const k     = LINE_NAME_MAP[token] || token;
         const color = CTA_LINES[k]?.color || '#888';
-        const layer = L.geoJSON(f, { style: { color, weight: 3.5, opacity: 0.85 } });
-        overlayLayers.train.push(layer);
+        overlayLayers.train.push(L.geoJSON(f, { style: { color, weight: 3.5, opacity: 0.85 } }));
       });
     });
   }
@@ -704,6 +711,20 @@ async function loadTrainLines() {
 
 // ── BUS STOPS ─────────────────────────────────────────────────────────────
 async function loadBusStops() {
+  // ── Try static pre-built file first (instant) ────────────────────────
+  try {
+    const res = await fetch('data/bus.json');
+    if (res.ok) {
+      const elements = await res.json();
+      console.log('bus loaded from static file:', elements.length, 'stops');
+      buildOverlayMarkers('bus', elements);
+      return;
+    }
+  } catch(e) {
+    console.warn('bus static file not found, falling back to live fetch');
+  }
+
+  // ── Fallback: Chicago Data Portal then Overpass ───────────────────────
   const url = 'https://data.cityofchicago.org/resource/qs84-j7wh.json?$limit=15000';
   try {
     const res = await fetch(url);
@@ -790,12 +811,26 @@ function cacheSet(key, data) {
 }
 
 async function loadOverpass(type) {
+  // ── Try static pre-built file first (instant) ─────────────────────────
+  try {
+    const res = await fetch(`data/${type}.json`);
+    if (res.ok) {
+      const elements = await res.json();
+      console.log(type, 'loaded from static file:', elements.length, 'elements');
+      buildOverlayMarkers(type, elements);
+      return;
+    }
+  } catch(e) {
+    console.warn(type, 'static file not found, falling back to Overpass live fetch');
+  }
+
+  // ── Fallback: live Overpass fetch (first-time / file missing) ─────────
   const bbox = getAptBbox();
 
-  // Check cache first — instant if hit
+  // Check localStorage cache
   const cached = cacheGet(type + '_' + bbox);
   if (cached) {
-    console.log(type, 'loaded from cache:', cached.length, 'elements');
+    console.log(type, 'loaded from localStorage cache:', cached.length, 'elements');
     buildOverlayMarkers(type, cached);
     return;
   }
@@ -813,7 +848,7 @@ async function loadOverpass(type) {
     throw new Error('All Overpass endpoints failed: ' + e.message);
   }
 
-  console.log(type, 'overlay: got', data.elements?.length || 0, 'results');
+  console.log(type, 'overlay: got', data.elements?.length || 0, 'results from live fetch');
   cacheSet(type + '_' + bbox, data.elements || []);
   buildOverlayMarkers(type, data.elements || []);
 }
