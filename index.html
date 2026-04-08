@@ -483,7 +483,7 @@ async function loadBusStops() {
 async function loadOverpass(type) {
   const bbox = '41.64,-87.85,42.05,-87.52';
   const queries = {
-    gym: `[out:json][timeout:60];(node["leisure"="fitness_centre"](${bbox});way["leisure"="fitness_centre"](${bbox});node["leisure"="sports_centre"](${bbox});way["leisure"="sports_centre"](${bbox}););out center;`,
+    gym: `[out:json][timeout:60];(node["leisure"="fitness_centre"](${bbox});way["leisure"="fitness_centre"](${bbox});node["leisure"="sports_centre"](${bbox});way["leisure"="sports_centre"](${bbox});node["amenity"="gym"](${bbox});way["amenity"="gym"](${bbox});relation["leisure"="fitness_centre"](${bbox}););out center;`,
     grocery: `[out:json][timeout:60];(node["shop"="supermarket"](${bbox});way["shop"="supermarket"](${bbox});node["shop"="grocery"](${bbox});way["shop"="grocery"](${bbox});node["shop"="convenience"](${bbox}););out center;`,
     bus: `[out:json][timeout:60];(node["highway"="bus_stop"](${bbox}););out;`
   };
