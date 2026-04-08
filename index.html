@@ -192,6 +192,56 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
         <option value="yes">W/D in-unit</option>
       </select>
     </div>
+    <div class="chip">
+      <select id="f-status">
+        <option value="">Any stage</option>
+        <option value="untouched">Untouched</option>
+        <option value="touring">Touring</option>
+        <option value="considering">Considering</option>
+        <option value="yes">Yes</option>
+        <option value="no">No</option>
+      </select>
+    </div>
+    <div class="chip"><span>🛁</span>
+      <select id="f-baths">
+        <option value="">Any baths</option>
+        <option value="1">≥ 1</option>
+        <option value="1.5">≥ 1.5</option>
+        <option value="2">≥ 2</option>
+      </select>
+    </div>
+    <div class="chip"><span>🔊</span>
+      <select id="f-noise">
+        <option value="">Any noise</option>
+        <option value="Low">Low</option>
+        <option value="Medium">≤ Medium</option>
+        <option value="High">Any (incl. High)</option>
+      </select>
+    </div>
+    <div class="chip">
+      <select id="f-topfloor">
+        <option value="">Top floor: any</option>
+        <option value="yes">Top floor only</option>
+      </select>
+    </div>
+    <div class="chip"><span>⭐</span>
+      <select id="f-rating">
+        <option value="">Any rating</option>
+        <option value="3">≥ 3 stars</option>
+        <option value="4">≥ 4 stars</option>
+        <option value="5">5 stars</option>
+      </select>
+    </div>
+    <div class="chip"><span>📐</span>
+      <select id="f-sqft">
+        <option value="">Any sqft</option>
+        <option value="500">≥ 500</option>
+        <option value="700">≥ 700</option>
+        <option value="900">≥ 900</option>
+        <option value="1100">≥ 1,100</option>
+        <option value="1300">≥ 1,300</option>
+      </select>
+    </div>
     <!-- Map overlay toggles -->
     <div class="chip toggle" id="toggle-train" onclick="toggleOverlay('train')">🚇 L Train</div>
     <div class="chip toggle" id="toggle-bus"   onclick="toggleOverlay('bus')">🚌 Bus</div>
@@ -786,19 +836,37 @@ function fmtDate(s) {
 }
 
 // ── FILTERS ───────────────────────────────────────────────────────────────
+const NOISE_RANK = { 'low': 1, 'medium': 2, 'high': 3 };
+
 function applyFilters() {
-  const maxRent = parseInt(document.getElementById('f-rent').value)||Infinity;
-  const beds    = document.getElementById('f-beds').value;
-  const avail   = document.getElementById('f-avail').value;
-  const wd      = document.getElementById('f-wd').value;
+  const maxRent    = parseInt(document.getElementById('f-rent').value)    || Infinity;
+  const beds       = document.getElementById('f-beds').value;
+  const avail      = document.getElementById('f-avail').value;
+  const wd         = document.getElementById('f-wd').value;
+  const status     = document.getElementById('f-status').value.toLowerCase();
+  const minBaths   = parseFloat(document.getElementById('f-baths').value) || 0;
+  const maxNoise   = document.getElementById('f-noise').value;
+  const topFloor   = document.getElementById('f-topfloor').value;
+  const minRating  = parseInt(document.getElementById('f-rating').value)  || 0;
+  const minSqft    = parseInt(document.getElementById('f-sqft').value)    || 0;
 
   visibleIdxs = APTS.map((_,i)=>i).filter(i => {
     const a = APTS[i];
-    if (a.rent && a.rent > maxRent) return false;
-    if (beds!=='' && a.beds!==parseInt(beds)) return false;
-    if (avail==='yes' && yn(a.available)!==true)  return false;
-    if (avail==='no'  && yn(a.available)!==false) return false;
-    if (wd==='yes'    && yn(a.washerDryer)!==true) return false;
+    if (a.rent   && a.rent   > maxRent)  return false;
+    if (beds !== '' && a.beds !== parseInt(beds)) return false;
+    if (avail === 'yes' && yn(a.available) !== true)  return false;
+    if (avail === 'no'  && yn(a.available) !== false) return false;
+    if (wd    === 'yes' && yn(a.washerDryer) !== true) return false;
+    if (status && (a.status||'').toLowerCase() !== status) return false;
+    if (minBaths  && (a.baths  || 0) < minBaths)  return false;
+    if (minRating && (parseInt(a.rating) || 0) < minRating) return false;
+    if (minSqft   && (a.sqft   || 0) < minSqft)   return false;
+    if (topFloor === 'yes' && yn(a.topFloor) !== true) return false;
+    if (maxNoise) {
+      const rank = NOISE_RANK[(a.noise||'').toLowerCase()];
+      const max  = NOISE_RANK[maxNoise.toLowerCase()];
+      if (rank && max && rank > max) return false;
+    }
     return true;
   });
   visibleIdxs.sort((a,b)=>sortAsc?(APTS[a].rent||0)-(APTS[b].rent||0):(APTS[b].rent||0)-(APTS[a].rent||0));
@@ -812,7 +880,7 @@ function applyFilters() {
   renderList();
 }
 
-['f-rent','f-beds','f-avail','f-wd'].forEach(id =>
+['f-rent','f-beds','f-avail','f-wd','f-status','f-baths','f-noise','f-topfloor','f-rating','f-sqft'].forEach(id =>
   document.getElementById(id).addEventListener('change', applyFilters)
 );
 document.getElementById('list-sort').addEventListener('click', ()=>{
