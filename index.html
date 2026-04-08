@@ -741,51 +741,97 @@ async function loadBusStops() {
 }
 
 // ── OVERPASS (gyms, grocery, bus fallback) ────────────────────────────────
+// Optimisation 1: dynamic bbox from actual apartments + padding
+function getAptBbox(padDeg = 0.03) {
+  const pts = APTS.filter(a => a.lat && a.lng);
+  if (!pts.length) return '41.64,-87.85,42.05,-87.52'; // Chicago fallback
+  const lats = pts.map(a => a.lat);
+  const lngs = pts.map(a => a.lng);
+  const s = (Math.min(...lats) - padDeg).toFixed(4);
+  const w = (Math.min(...lngs) - padDeg).toFixed(4);
+  const n = (Math.max(...lats) + padDeg).toFixed(4);
+  const e = (Math.max(...lngs) + padDeg).toFixed(4);
+  return `${s},${w},${n},${e}`;
+}
+
+// Optimisation 2: race all endpoints in parallel, take the fastest winner
+async function overpassRace(query) {
+  const endpoints = [
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+    'https://overpass.private.coffee/api/interpreter'
+  ];
+  const body = 'data=' + encodeURIComponent(query);
+  const tryEndpoint = ep => fetch(ep, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body,
+    signal: AbortSignal.timeout(25000)
+  }).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+
+  // Fire all three at once, return first success
+  return Promise.any(endpoints.map(ep => tryEndpoint(ep)));
+}
+
+// Optimisation 3: localStorage cache with 7-day expiry
+const CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
+function cacheGet(key) {
+  try {
+    const raw = localStorage.getItem('overlay_' + key);
+    if (!raw) return null;
+    const { ts, data } = JSON.parse(raw);
+    if (Date.now() - ts > CACHE_TTL) { localStorage.removeItem('overlay_' + key); return null; }
+    return data;
+  } catch { return null; }
+}
+function cacheSet(key, data) {
+  try { localStorage.setItem('overlay_' + key, JSON.stringify({ ts: Date.now(), data })); }
+  catch { /* storage full — silently skip */ }
+}
+
 async function loadOverpass(type) {
-  const bbox = '41.64,-87.85,42.05,-87.52';
+  const bbox = getAptBbox();
+
+  // Check cache first — instant if hit
+  const cached = cacheGet(type + '_' + bbox);
+  if (cached) {
+    console.log(type, 'loaded from cache:', cached.length, 'elements');
+    buildOverlayMarkers(type, cached);
+    return;
+  }
+
   const queries = {
-    gym: `[out:json][timeout:60];(node["leisure"="fitness_centre"](${bbox});way["leisure"="fitness_centre"](${bbox});node["leisure"="sports_centre"](${bbox});way["leisure"="sports_centre"](${bbox}););out center;`,
-    grocery: `[out:json][timeout:60];(node["shop"="supermarket"](${bbox});way["shop"="supermarket"](${bbox});node["shop"="grocery"](${bbox});way["shop"="grocery"](${bbox});node["shop"="convenience"](${bbox}););out center;`,
-    bus: `[out:json][timeout:60];(node["highway"="bus_stop"](${bbox}););out;`
+    gym:     `[out:json][timeout:30];(node["leisure"="fitness_centre"](${bbox});way["leisure"="fitness_centre"](${bbox});node["leisure"="sports_centre"](${bbox});way["leisure"="sports_centre"](${bbox});node["amenity"="gym"](${bbox});way["amenity"="gym"](${bbox});relation["leisure"="fitness_centre"](${bbox}););out center;`,
+    grocery: `[out:json][timeout:30];(node["shop"="supermarket"](${bbox});way["shop"="supermarket"](${bbox});node["shop"="grocery"](${bbox});way["shop"="grocery"](${bbox});node["shop"="convenience"](${bbox});way["shop"="convenience"](${bbox});node["shop"="food"](${bbox});way["shop"="food"](${bbox});node["shop"="wholesale"](${bbox});way["shop"="wholesale"](${bbox});relation["shop"="supermarket"](${bbox}););out center;`,
+    bus:     `[out:json][timeout:30];(node["highway"="bus_stop"](${bbox}););out;`
   };
 
+  let data;
+  try {
+    data = await overpassRace(queries[type]);
+  } catch(e) {
+    throw new Error('All Overpass endpoints failed: ' + e.message);
+  }
+
+  console.log(type, 'overlay: got', data.elements?.length || 0, 'results');
+  cacheSet(type + '_' + bbox, data.elements || []);
+  buildOverlayMarkers(type, data.elements || []);
+}
+
+function buildOverlayMarkers(type, elements) {
   const cfg = {
     gym:     { emoji: '💪', bg: '#2a3d2f', text: '#7ec8a0', border: '#7ec8a0' },
     grocery: { emoji: '🛒', bg: '#1e2e3a', text: '#7ab8d4', border: '#7ab8d4' },
     bus:     { emoji: '',   bg: '#fff',    text: '#333',    border: '#555' },
   }[type];
 
-  const endpoints = [
-    'https://overpass-api.de/api/interpreter',
-    'https://overpass.kumi.systems/api/interpreter',
-    'https://overpass.private.coffee/api/interpreter'
-  ];
-
-  let data = null, lastErr = null;
-  for (const ep of endpoints) {
-    try {
-      const res = await fetch(ep, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'data=' + encodeURIComponent(queries[type])
-      });
-      if (!res.ok) { lastErr = new Error(`${ep}: HTTP ${res.status}`); continue; }
-      data = await res.json();
-      break;
-    } catch (e) {
-      lastErr = e;
-      console.warn('Overpass endpoint failed:', ep, e.message);
-    }
-  }
-  if (!data) throw lastErr || new Error('All Overpass endpoints failed');
-
   const seen = new Set();
-  (data.elements || []).forEach(el => {
+  elements.forEach(el => {
     const lat = el.lat || el.center?.lat;
     const lon = el.lon || el.center?.lon;
     if (!lat || !lon) return;
     const name = el.tags?.name || '';
-    const key  = name ? name + Math.round(lat*100) : `${lat.toFixed(4)},${lon.toFixed(4)}`;
+    const key  = name ? name + Math.round(lat * 100) : `${lat.toFixed(4)},${lon.toFixed(4)}`;
     if (seen.has(key)) return;
     seen.add(key);
 
