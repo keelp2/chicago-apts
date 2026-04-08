@@ -341,18 +341,20 @@ function showPreview(apt, x, y) {
     previewBody.style.display   = 'none';
     previewEl.classList.add('show');
 
-    // Fetch (cached)
-    if (!previewCache[apt.url]) {
-      try {
-        const res  = await fetch(`https://api.microlink.io?url=${encodeURIComponent(apt.url)}`);
-        const json = await res.json();
-        previewCache[apt.url] = json.data || {};
-      } catch(e) {
-        previewCache[apt.url] = {};
+    // Skip fetch for Facebook — always returns generic logged-out content
+    if (!apt.url.includes('facebook')) {
+      if (!previewCache[apt.url]) {
+        try {
+          const res  = await fetch(`https://api.microlink.io?url=${encodeURIComponent(apt.url)}`);
+          const json = await res.json();
+          previewCache[apt.url] = json.data || {};
+        } catch(e) {
+          previewCache[apt.url] = {};
+        }
       }
     }
 
-    const data = previewCache[apt.url];
+    const data = previewCache[apt.url] || {};
     previewLoader.style.display = 'none';
     previewBody.style.display   = 'block';
     previewSource.textContent   = sourceName(apt.url);
