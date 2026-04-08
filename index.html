@@ -778,8 +778,11 @@ function yn(v) {
 }
 function fmtDate(s) {
   if (!s) return '';
-  try { return new Date(s+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
-  catch { return s; }
+  try {
+    const d = new Date(s);
+    if (!isNaN(d)) return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    return s;
+  } catch { return s; }
 }
 
 // ── FILTERS ───────────────────────────────────────────────────────────────
