@@ -397,11 +397,11 @@ async function loadTrainLines() {
     const lng = parseFloat(s.location?.longitude || s.lon);
     if (!lat || !lng) return;
     const stationName = s.station_name || s.stationname || s.station_descriptive_name || 'Station';
-
-    if (!byStation.has(stationName)) {
-      byStation.set(stationName, { lat, lng, name: stationName, lines: new Set() });
+    const groupKey = s.map_id || s.station_id || s.stop_id || stationName;
+    if (!byStation.has(groupKey)) {
+      byStation.set(groupKey, { lat, lng, name: stationName, lines: new Set() });
     }
-    const entry = byStation.get(stationName);
+    const entry = byStation.get(groupKey);
     Object.keys(CTA_LINES).forEach(k => {
       if (s[k] === true || s[k] === 'true' || s[k] === '1' || s[k] === 1) {
         entry.lines.add(CTA_LINES[k].name);
