@@ -483,7 +483,8 @@ function parseCSV(text) {
       parking:['parking'], petFriendly:['petfriendly','pets'],
       status:['status'], rating:['rating','myrating'],
       landlord:['landlord','managementcompany'],
-      contact:['contact','contactinfo']
+      contact:['contact','contactinfo'],
+      noise:['noise','noiselevel','noisylevel']
     };
     const opts = synonyms[k] || [k];
     for (const o of opts) { const i = headers.indexOf(o); if (i !== -1) return i; }
@@ -524,6 +525,7 @@ function parseCSV(text) {
       rating: get(v,'rating'),
       landlord: get(v,'landlord'),
       contact: get(v,'contact'),
+      noise: get(v,'noise'),
     };
     return (apt.lat && apt.lng) ? apt : null;
   }).filter(Boolean);
@@ -641,7 +643,11 @@ function renderList() {
         ${wdTag}${topTag}${trainTag}${ratingTag}
       </div>
       <div class="card-footer">
-        ${a.tourDate ? `<span class="tour-date">📅 ${fmtDate(a.tourDate)}</span>` : ''}
+        ${a.noise ? `
+    <div class="detail-section-title">Noise</div>
+    <div style="margin-bottom:14px;"><div class="dg-item" style="display:inline-block;min-width:120px;"><div class="dg-label">Noise level</div><div class="dg-val">${a.noise}</div></div></div>` : ''}
+
+    ${a.tourDate ? `<span class="tour-date">📅 ${fmtDate(a.tourDate)}</span>` : ''}
         ${a.gym && yn(a.gym)!==false ? `<span>💪 ${a.gym}</span>` : ''}
       </div>`;
 
@@ -718,6 +724,10 @@ function renderSheet(a) {
       ${a.gym ? `<div class="dg-item"><div class="dg-label">Gym</div><div class="dg-val">${a.gym}</div></div>` : ''}
       ${a.grocery ? `<div class="dg-item"><div class="dg-label">Grocery</div><div class="dg-val">${a.grocery}</div></div>` : ''}
     </div>
+
+    ${a.noise ? `
+    <div class="detail-section-title">Noise</div>
+    <div style="margin-bottom:14px;"><div class="dg-item" style="display:inline-block;min-width:120px;"><div class="dg-label">Noise level</div><div class="dg-val">${a.noise}</div></div></div>` : ''}
 
     ${a.tourDate ? `
     <div class="detail-section-title">Tour</div>
